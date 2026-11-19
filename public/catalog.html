@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Full Artifact Catalog (45,008) · 全部文物总名录 — Artifacts Archive</title>
+  <meta name="description" content="Complete searchable, filterable, and exportable master catalogue of all 45,008 artifacts across 10 world museums and 101 origin homelands, including 325 verified HD masterpieces." />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/catalog.css" />
+</head>
+<body class="catalog-page">
+  <header id="site-nav">
+    <div class="nav-inner">
+      <a class="brand-link" href="./index.html" id="cat-brand-back-link">
+        <img class="brand-mark" src="./favicon.svg" alt="" width="26" height="26" />
+        <span id="brand-primary" class="brand-text-primary" data-i18n="brandPrimary">Artifacts Archive</span>
+      </a>
+
+      <div class="cat-page-switcher" role="navigation" aria-label="Exhibition lens pages">
+        <a id="cat-nav-prov-link" class="cat-page-pill" href="./index.html" data-i18n="navProvenance">← 3D Globe</a>
+        <a id="cat-nav-age-link" class="cat-page-pill" href="./creation-age.html" data-i18n="navCreationAge">Creation Age ✦</a>
+        <span class="cat-page-pill active" aria-current="page" data-i18n="navCatalogCurrent">Full Catalog (45,008) ▤</span>
+      </div>
+
+      <nav class="nav-links cat-sec-links" aria-label="Catalog sections">
+        <a href="#cat-hero-section" class="active" data-cat-sec="cat-hero-section" data-i18n="secFilterNav">01 · Filter &amp; Summary</a>
+        <a href="#cat-directory-section" data-cat-sec="cat-directory-section" data-i18n="secLedgerNav">02 · 45,008 Ledger</a>
+        <a href="#cat-matrix-section" data-cat-sec="cat-matrix-section" data-i18n="secMatrixNav">03 · 101×10 Matrix</a>
+      </nav>
+
+      <div class="nav-right">
+        <div class="lang-toggle" role="group" aria-label="Language selector">
+          <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 01. Master Summary & Multi-Facet Filter Deck -->
+    <section id="cat-hero-section" class="cat-hero-deck">
+      <div class="cat-hero-header">
+        <div class="cat-hero-copy">
+          <div class="cat-eyebrow" data-i18n="catEyebrow">COMPLETE ARCHIVAL LEDGER · 10 WORLD MUSEUMS · 101 ORIGIN HOMELANDS</div>
+          <h1 id="cat-main-title" data-i18n="catMainTitle">Complete 45,008-Artifact Master Catalogue</h1>
+          <p id="cat-main-sub" data-i18n="catMainSub">
+            Browse, search, sort, inspect, and export every single catalogued record across all 10 encyclopedic museums—including all 325 verified Ultra-HD museum masterpieces and 44,683 regional study &amp; provenance records (both international origins and domestic host-country collections), with bilingual titles, inventory numbers, creation &amp; acquisition dates, materials, galleries, and direct 3D Globe links.
+          </p>
+        </div>
+
+        <div class="cat-kpi-strip" aria-label="Filtered archive totals">
+          <div class="cat-kpi-box">
+            <div id="cat-kpi-matching" class="cat-kpi-num">45,008</div>
+            <div class="cat-kpi-lbl" data-i18n="kpiMatching">Matching Artifacts</div>
+          </div>
+          <div class="cat-kpi-box">
+            <div id="cat-kpi-curated" class="cat-kpi-num">325</div>
+            <div class="cat-kpi-lbl" data-i18n="kpiCurated">HD Masterpieces</div>
+          </div>
+          <div class="cat-kpi-box">
+            <div id="cat-kpi-museums" class="cat-kpi-num">10 / 10</div>
+            <div class="cat-kpi-lbl" data-i18n="kpiMuseums">Museums</div>
+          </div>
+          <div class="cat-kpi-box">
+            <div id="cat-kpi-countries" class="cat-kpi-num">101 / 101</div>
+            <div class="cat-kpi-lbl" data-i18n="kpiHomelands">Homelands</div>
+          </div>
+          <div class="cat-kpi-box">
+            <div id="cat-kpi-intl-host" class="cat-kpi-num">39,608 / 5,400</div>
+            <div class="cat-kpi-lbl" data-i18n="kpiIntlHost">Overseas / Host</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10-Museum Quick Filter Strip -->
+      <div id="cat-museum-pills" class="cat-museum-pills" role="group" aria-label="Filter by holding museum"></div>
+
+      <!-- Faceted Search, Filters, Sort & CSV Export -->
+      <div class="cat-filter-card" aria-label="Search and filter controls">
+        <div class="cat-search-row">
+          <div class="cat-search-box">
+            <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input id="cat-search-input" type="search" autocomplete="off" spellcheck="false" placeholder="Search all 45,008 records by title (EN / 中文), inventory #, country, museum, material, room..." data-i18n-placeholder="searchPlaceholder" />
+            <button id="cat-search-clear" type="button" class="cat-clear-x is-hidden" aria-label="Clear search">×</button>
+          </div>
+
+          <div class="cat-top-actions">
+            <button id="cat-reset-btn" type="button" class="cat-btn-secondary" data-i18n="resetFiltersBtn">Reset All Filters</button>
+            <button id="cat-export-csv-btn" type="button" class="cat-btn-gold" data-i18n="exportCsvBtn">⬇ Export Filtered CSV</button>
+          </div>
+        </div>
+
+        <div class="cat-facets-grid">
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetMuseum">Holding Museum</span>
+            <select id="cat-museum-select"></select>
+          </label>
+
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetHomeland">Origin Homeland (101)</span>
+            <select id="cat-country-select"></select>
+          </label>
+
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetEra">Creation Era</span>
+            <select id="cat-era-select"></select>
+          </label>
+
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetTier">Catalogue Tier</span>
+            <select id="cat-tier-select"></select>
+          </label>
+
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetProv">Provenance Type</span>
+            <select id="cat-prov-select"></select>
+          </label>
+
+          <label class="cat-facet">
+            <span class="cat-facet-lbl" data-i18n="facetSort">Sort Order</span>
+            <select id="cat-sort-select"></select>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02. Complete 45,008-Record Master Ledger & Photo Grid -->
+    <section id="cat-directory-section" class="cat-directory-section">
+      <div class="cat-toolbar">
+        <div class="cat-toolbar-left">
+          <span id="cat-range-summary" class="cat-range-summary">Showing #1–100 of 45,008 artifacts</span>
+          <div id="cat-active-chips" class="cat-active-chips"></div>
+        </div>
+
+        <div class="cat-toolbar-right">
+          <div class="cat-view-switch" role="group" aria-label="Directory display layout">
+            <button id="cat-view-table" type="button" class="cat-view-btn active" aria-pressed="true" data-i18n="viewTableBtn">▤ Full Ledger Table</button>
+            <button id="cat-view-cards" type="button" class="cat-view-btn" aria-pressed="false" data-i18n="viewCardsBtn">⊞ Photo Cards</button>
+          </div>
+
+          <label class="cat-pagesize-wrap" for="cat-pagesize-select">
+            <span data-i18n="perPageLbl">Per page</span>
+            <select id="cat-pagesize-select">
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="250">250</option>
+            </select>
+          </label>
+
+          <div class="cat-jump-wrap">
+            <label for="cat-jump-input" data-i18n="jumpRecordLbl">Jump #</label>
+            <input id="cat-jump-input" type="number" min="1" max="45008" placeholder="1–45008" />
+            <button id="cat-jump-btn" type="button" class="cat-jump-go" data-i18n="jumpGoBtn">Go</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Pagination -->
+      <nav id="cat-pager-top" class="cat-pager" aria-label="Top catalog pagination"></nav>
+
+      <!-- Ledger Table View -->
+      <div id="cat-table-wrap" class="cat-table-wrap">
+        <table class="cat-ledger-table">
+          <thead>
+            <tr>
+              <th class="col-idx th-sortable" data-sort-col="index" data-i18n="thIndex"># / Tier</th>
+              <th class="col-photo" data-i18n="thPhoto">Plate</th>
+              <th class="col-title" data-i18n="thArtifact">Artifact Title (EN &amp; 中文), Material &amp; Provenance Note</th>
+              <th class="col-origin th-sortable" data-sort-col="country" data-i18n="thHomeland">Origin Homeland</th>
+              <th class="col-museum" data-i18n="thMuseum">Museum &amp; Gallery</th>
+              <th class="col-created th-sortable" data-sort-col="created" data-i18n="thCreated">Creation Age</th>
+              <th class="col-acq th-sortable" data-sort-col="acquired" data-i18n="thAcquired">Acquired</th>
+              <th class="col-reg" data-i18n="thInventory">Inventory / Reg. No.</th>
+              <th class="col-actions" data-i18n="thActions">Inspect &amp; Links</th>
+            </tr>
+          </thead>
+          <tbody id="cat-table-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Photo Card Grid View -->
+      <div id="cat-cards-grid" class="cat-cards-grid is-hidden"></div>
+
+      <!-- Empty State -->
+      <div id="cat-empty-state" class="cat-empty-state is-hidden">
+        <h3 data-i18n="emptyTitle">No artifacts match your current filter combination</h3>
+        <p data-i18n="emptySub">Try clearing your search text or resetting one of the museum, homeland, or era filters.</p>
+        <button id="cat-empty-reset-btn" type="button" class="cat-btn-gold" data-i18n="resetFiltersBtn">Reset All Filters</button>
+      </div>
+
+      <!-- Bottom Pagination -->
+      <nav id="cat-pager-bottom" class="cat-pager" aria-label="Bottom catalog pagination"></nav>
+    </section>
+
+    <!-- 03. Complete 101 Homelands × 10 Museums Cross-Tab Matrix -->
+    <section id="cat-matrix-section" class="editorial-section cat-matrix-section">
+      <div class="section-header cat-matrix-header">
+        <div class="section-eyebrow" data-i18n="matrixEyebrow">03 · COMPLETE PROVENANCE CROSS-TABULATION (101 × 10 = 45,008)</div>
+        <h2 data-i18n="matrixTitle">All 101 Origin Homelands Across All 10 World Museums</h2>
+        <p data-i18n="matrixSub">
+          Click any cell count to filter the master ledger above to that exact Homeland × Museum collection, or click any country name to view all holdings from that homeland across all 10 institutions. Gold-tinted cells denote a museum’s domestic host-country collection.
+        </p>
+      </div>
+
+      <div class="cat-matrix-wrap">
+        <table class="cat-matrix-table" id="cat-matrix-table">
+          <thead id="cat-matrix-head"></thead>
+          <tbody id="cat-matrix-body"></tbody>
+          <tfoot id="cat-matrix-foot"></tfoot>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Full Archival Record Sheet Modal -->
+  <div id="cat-record-modal" class="cat-modal-backdrop" role="dialog" aria-modal="true" aria-label="Full artifact archival record">
+    <div class="cat-record-sheet">
+      <div class="cat-sheet-topbar">
+        <div id="cat-sheet-badges" class="cat-sheet-badges"></div>
+        <div class="cat-sheet-nav">
+          <button id="cat-sheet-prev" type="button" class="cat-step-btn" aria-label="Previous record">‹</button>
+          <span id="cat-sheet-pos" class="cat-sheet-pos">1 / 45,008</span>
+          <button id="cat-sheet-next" type="button" class="cat-step-btn" aria-label="Next record">›</button>
+          <button id="cat-sheet-close" type="button" class="cat-close-btn" aria-label="Close record">×</button>
+        </div>
+      </div>
+
+      <div class="cat-sheet-grid">
+        <div class="cat-sheet-media">
+          <button id="cat-sheet-photo-btn" type="button" class="cat-sheet-photo-btn" aria-label="Zoom high-resolution studio photograph">
+            <canvas id="cat-sheet-canvas" width="420" height="420"></canvas>
+            <img id="cat-sheet-hd-img" alt="" />
+            <span class="zoom-badge" data-i18n="zoomHdBadge">🔍 Ultra-HD Zoom</span>
+          </button>
+          <div class="cat-sheet-links">
+            <a id="cat-sheet-globe-link" class="btn-primary-gold" href="./index.html" data-i18n="locateGlobeBtn">Locate on 3D Globe ↗</a>
+            <a id="cat-sheet-age-link" class="btn-secondary-vellum" href="./creation-age.html" data-i18n="viewAgeBtn">View in Creation Age ↗</a>
+            <a id="cat-sheet-obj-link" class="btn-secondary-vellum" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Official Museum Record ↗</a>
+            <a id="cat-sheet-cat-link" class="btn-secondary-vellum" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Homeland Catalogue ↗</a>
+          </div>
+        </div>
+
+        <div class="cat-sheet-details">
+          <h2 id="cat-sheet-title-primary"></h2>
+          <div id="cat-sheet-title-secondary" class="cat-sheet-subtitle"></div>
+          <p id="cat-sheet-desc-primary" class="cat-sheet-desc"></p>
+          <p id="cat-sheet-desc-secondary" class="cat-sheet-desc-alt"></p>
+
+          <dl id="cat-sheet-dl" class="cat-meta-dl"></dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full-Screen Studio Photo Lightbox -->
+  <div id="cat-lightbox" class="cat-lightbox" role="dialog" aria-modal="true" aria-label="High-resolution photograph">
+    <div class="lightbox-card">
+      <button id="cat-lb-close" type="button" aria-label="Close preview">×</button>
+      <div class="lightbox-stage">
+        <button id="cat-lb-prev" type="button" class="lightbox-step-btn prev" aria-label="Previous artifact">‹</button>
+        <canvas id="cat-lb-canvas" width="560" height="560"></canvas>
+        <img id="cat-lb-img" alt="" />
+        <button id="cat-lb-next" type="button" class="lightbox-step-btn next" aria-label="Next artifact">›</button>
+      </div>
+      <div class="lightbox-info">
+        <div id="cat-lb-kicker" class="lightbox-kicker"></div>
+        <h3 id="cat-lb-title"></h3>
+        <p id="cat-lb-desc"></p>
+        <div class="lightbox-actions">
+          <a id="cat-lb-obj-link" class="btn-primary-gold" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Open Official Record ↗</a>
+          <a id="cat-lb-globe-link" class="btn-secondary-vellum" href="./index.html" data-i18n="locateGlobeBtn">Locate on 3D Globe ↗</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer id="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong data-i18n="footerBrand">Artifacts Archive</strong>
+        <span> · </span>
+        <span data-i18n="catFooterNote">Complete 45,008-Artifact Master Catalogue across 10 World Museums &amp; 101 Origin Homelands.</span>
+      </div>
+      <div class="footer-links">
+        <a id="cat-footer-prov-link" href="./index.html" data-i18n="navProvenance">← 3D Globe</a>
+        <a id="cat-footer-age-link" href="./creation-age.html" data-i18n="navCreationAge">Creation Age ✦</a>
+        <a href="#cat-hero-section" data-i18n="footerTopLink">Back to Top ↑</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./js/assets.js" defer></script>
+  <script src="./js/catalog.js" defer></script>
+</body>
+</html>

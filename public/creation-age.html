@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creation Age Chronicle · 文明诞生纪年 — Artifacts Archive</title>
+  <meta name="description" content="Explore 8,000 years of human civilization by artifact creation age (6000 BC – AD 2023) across 10 world museums and 45,008 catalogued works, with strict historical era filtering." />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="stylesheet" href="./css/creation-age.css" />
+</head>
+<body class="creation-age-page">
+  <header id="site-nav">
+    <div class="nav-inner">
+      <a class="brand-link" href="./index.html" id="ca-brand-back-link">
+        <img class="brand-mark" src="./favicon.svg" alt="" width="26" height="26" />
+        <span id="brand-primary" class="brand-text-primary" data-i18n="brandPrimary">Artifacts Archive</span>
+      </a>
+
+      <div class="ca-page-switcher" role="navigation" aria-label="Exhibition lens pages">
+        <a id="ca-back-provenance-link" class="ca-page-pill" href="./index.html" data-i18n="navBackProvenance">← 3D Globe</a>
+        <span class="ca-page-pill active" aria-current="page" data-i18n="navCreationCurrent">Creation Age ✦</span>
+        <a id="ca-nav-catalog-link" class="ca-page-pill" href="./catalog.html" data-i18n="navFullCatalog">Full Catalog (45k) ▤</a>
+      </div>
+
+      <nav class="nav-links ca-sec-links" aria-label="Creation Age sections">
+        <a href="#era-deck" class="active" data-ca-section="era-deck" data-i18n="caNavEras">01 · Era Filter</a>
+        <a href="#chrono-globe-section" data-ca-section="chrono-globe-section" data-i18n="caNavGlobe">02 · 3D Civilizations</a>
+        <a href="#synchrony-section" data-ca-section="synchrony-section" data-i18n="caNavSynchrony">03 · World Synchrony</a>
+      </nav>
+
+      <div class="nav-right">
+        <div id="ca-museum-dropdown" class="museum-dropdown nav-museum-dropdown">
+          <button id="ca-museum-trigger" type="button" class="museum-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+            <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>
+            <span id="ca-museum-current" class="md-current-name">All 10 Museums</span>
+            <span class="md-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="ca-museum-menu" class="museum-dropdown-menu" role="listbox" aria-label="Filter by museum"></div>
+        </div>
+        <div class="lang-toggle" role="group" aria-label="Language selector">
+          <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 01. Creation Age Era Filter & 8,000-Year Density Histogram -->
+    <section id="era-deck" class="ca-hero-deck">
+      <div class="ca-hero-header">
+        <div>
+          <div class="ca-eyebrow" data-i18n="caEyebrow">8,000 YEARS OF HUMAN CRAFT · STRICT CREATION-AGE FILTER</div>
+          <h1 id="ca-main-title" data-i18n="caTitle">Chronicle of Civilizations by Creation Age</h1>
+          <p id="ca-main-sub" data-i18n="caSub">
+            Select an era or drag the historical time-slice below. Unlike museum acquisition timelines, only works actually created during your chosen period appear on the 3D globe, civilization rankings, and masterpiece chronicle.
+          </p>
+        </div>
+        <div class="ca-live-kpis">
+          <div class="ca-kpi-box">
+            <span id="ca-kpi-works" class="ca-kpi-num">45,008</span>
+            <span class="ca-kpi-lbl" data-i18n="caKpiWorks">Works in Era</span>
+          </div>
+          <div class="ca-kpi-box">
+            <span id="ca-kpi-plates" class="ca-kpi-num">325</span>
+            <span class="ca-kpi-lbl" data-i18n="caKpiPlates">Curated HD Plates</span>
+          </div>
+          <div class="ca-kpi-box">
+            <span id="ca-kpi-civs" class="ca-kpi-num">101</span>
+            <span class="ca-kpi-lbl" data-i18n="caKpiCivs">Active Origins</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 Canonical Historical Era Cards -->
+      <div id="era-cards-grid" class="era-cards-grid" role="tablist" aria-label="Historical creation eras"></div>
+
+      <!-- Interactive Histogram + Custom Time Window Controls -->
+      <div class="ca-chrono-panel">
+        <div class="ca-chrono-top">
+          <div class="ca-window-readout-wrap">
+            <button id="ca-walk-btn" type="button" class="ca-walk-btn">
+              <span id="ca-walk-icon">▶</span>
+              <span id="ca-walk-label" data-i18n="caWalkBtn">Walk Through Eras</span>
+            </button>
+            <span id="ca-active-window-badge" class="ca-window-badge">6000 BC – AD 2023</span>
+            <span id="ca-active-era-desc" class="ca-era-story">Spanning Neolithic river valleys to modern global studio works across all 10 museums.</span>
+          </div>
+          <button id="ca-reset-all-btn" type="button" class="ca-reset-pill" data-i18n="caShowAllEras">Show All Eras</button>
+        </div>
+
+        <div class="ca-histogram-wrap">
+          <canvas id="era-histogram" width="1200" height="96" aria-label="Artifact creation density across 8,000 years"></canvas>
+        </div>
+
+        <div class="ca-custom-sliders">
+          <label class="ca-slider-group" for="ca-start-idx">
+            <span data-i18n="caFromLbl">From</span>
+            <input id="ca-start-idx" type="range" min="0" max="24" step="1" value="0" />
+            <span id="ca-start-readout" class="ca-bound-val">6000 BC</span>
+          </label>
+          <label class="ca-slider-group" for="ca-end-idx">
+            <span data-i18n="caToLbl">To</span>
+            <input id="ca-end-idx" type="range" min="1" max="25" step="1" value="25" />
+            <span id="ca-end-readout" class="ca-bound-val">AD 2023</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02. Strictly Filtered 3D World Civilizations Globe -->
+    <section id="chrono-globe-section" aria-label="Interactive 3D Globe filtered by Artifact Creation Age">
+      <canvas id="ca-globe-canvas" role="img" aria-label="3D globe showing artifacts created during the selected historical era"></canvas>
+
+      <div id="ca-stage-header">
+        <h2 id="ca-globe-title">All Eras · 6000 BC – AD 2023</h2>
+        <div id="ca-globe-sub">45,008 works created across 101 origins · Held in 10 museums</div>
+      </div>
+
+      <aside id="ca-sidebar" aria-label="Active civilizations in selected era">
+        <div class="sidebar-topbar">
+          <span id="ca-sidebar-heading">101 Active Origins</span>
+          <button id="ca-sidebar-collapse" type="button" title="Collapse or expand sidebar">−</button>
+        </div>
+
+        <div class="search-wrap">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">
+              <svg class="gs-icon" viewBox="0 0 24 24"><path d="M20.49 19l-5.73-5.73C15.53 12.2 16 10.91 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.41 0 2.7-.47 3.77-1.24L19 20.49 20.49 19zM5 9.5C5 7.01 7.01 5 9.5 5S14 7.01 14 9.5 11.99 14 9.5 14 5 11.99 5 9.5z"/></svg>
+            </span>
+            <input id="ca-search-input" type="text" maxlength="60" data-i18n-placeholder="caSearchPlaceholder" placeholder="Filter origin or artifact in era..." aria-label="Filter origin or artifact in era" />
+            <button id="ca-search-clear" type="button" aria-label="Clear search">×</button>
+          </div>
+        </div>
+
+        <div id="ca-country-list"></div>
+
+        <div id="ca-country-detail">
+          <div class="detail-header-row">
+            <span id="ca-detail-title">China</span>
+            <button id="ca-back-countries-btn" type="button">
+              <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+              <span data-i18n="caBackOrigins">All Origins</span>
+            </button>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div id="ca-detail-count" class="kpi-val">0</div>
+              <div class="kpi-lbl" data-i18n="caKpiInEra">Created in Era</div>
+            </div>
+            <div class="kpi-card">
+              <div id="ca-detail-museums" class="kpi-val">0 / 10</div>
+              <div class="kpi-lbl" data-i18n="caKpiHeldIn">Museums Today</div>
+            </div>
+          </div>
+          <div id="ca-detail-museum-split" class="homeland-museum-breakdown"></div>
+          <div id="ca-thumb-grid"></div>
+        </div>
+      </aside>
+
+      <!-- Selected Artifact Modal -->
+      <article id="ca-artifact-modal" aria-label="Selected artifact creation details">
+        <button id="ca-modal-preview-btn" type="button" title="Click to enlarge high-resolution photograph">
+          <canvas id="ca-modal-canvas" width="420" height="420"></canvas>
+          <span class="zoom-badge" data-i18n="zoomBadge">HD Zoom</span>
+        </button>
+        <div class="modal-body">
+          <div class="modal-nav-controls">
+            <button id="ca-modal-prev" type="button" class="modal-step-btn" aria-label="Previous artifact">‹</button>
+            <button id="ca-modal-next" type="button" class="modal-step-btn" aria-label="Next artifact">›</button>
+            <button id="ca-modal-close" type="button" aria-label="Close details">
+              <svg class="gs-icon gs-icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+            </button>
+          </div>
+          <div>
+            <div class="modal-badge-row">
+              <span id="ca-modal-date-pill" class="modal-pill ca-pill-gold"></span>
+              <span id="ca-modal-country-pill" class="modal-pill"></span>
+              <span id="ca-modal-museum-pill" class="modal-pill modal-pill-museum"></span>
+            </div>
+            <h2 id="ca-modal-title"></h2>
+            <div id="ca-modal-meta"></div>
+            <p id="ca-modal-desc"></p>
+          </div>
+          <div class="modal-actions">
+            <a id="ca-modal-obj-link" class="modal-action-link" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Official Museum Record ↗</a>
+            <a id="ca-modal-prov-link" class="modal-share-btn" href="./index.html" data-i18n="caFlyProvenanceBtn">Repatriation Globe ↗</a>
+            <button id="ca-modal-zoom-btn" class="modal-share-btn" type="button" data-i18n="hdPhotoBtn">HD Photo</button>
+          </div>
+        </div>
+      </article>
+
+      <nav id="ca-bottom-dock" aria-label="Globe controls">
+        <div class="dock-row">
+          <span class="dock-stat"><strong id="ca-dock-works">45,008</strong> <span data-i18n="caDockCreatedWord">created in era</span> &nbsp;·&nbsp; <strong id="ca-dock-origins">101</strong> <span data-i18n="dockCountriesWord">countries</span></span>
+          <button id="ca-mode-standing" class="dock-btn active" type="button" data-i18n="modeStanding">Standing</button>
+          <button id="ca-mode-flat" class="dock-btn" type="button" data-i18n="modeFlat">Flat</button>
+          <button id="ca-mode-particles" class="dock-btn" type="button" data-i18n="modeParticles">Particles</button>
+          <label class="size-control" for="ca-size-slider">
+            <span data-i18n="sizeLabel">Size</span>
+            <input id="ca-size-slider" type="range" min="0.5" max="2.2" step="0.1" value="1.0" />
+            <span id="ca-size-readout">1.0</span>
+          </label>
+          <button id="ca-btn-rotate" class="dock-btn" type="button" data-i18n="btnRotate">Rotate</button>
+          <button id="ca-btn-labels" class="dock-btn active" type="button" data-i18n="caDateLabelsBtn">Creation Dates</button>
+          <button id="ca-btn-aurora" class="dock-btn active" type="button" data-i18n="btnAurora">Aurora</button>
+        </div>
+      </nav>
+    </section>
+
+    <div id="ca-tooltip"></div>
+
+    <!-- High-Resolution Lightbox -->
+    <div id="ca-lightbox" role="dialog" aria-modal="true" aria-label="High-resolution artifact photograph">
+      <div class="lightbox-card">
+        <button id="ca-lb-close" type="button" aria-label="Close preview">×</button>
+        <div class="lightbox-stage">
+          <button id="ca-lb-prev" type="button" class="lightbox-step-btn prev" aria-label="Previous artifact">‹</button>
+          <canvas id="ca-lb-canvas" width="560" height="560"></canvas>
+          <img id="ca-lb-img" alt="" />
+          <button id="ca-lb-next" type="button" class="lightbox-step-btn next" aria-label="Next artifact">›</button>
+        </div>
+        <div class="lightbox-info">
+          <div id="ca-lb-kicker" class="lightbox-kicker"></div>
+          <h3 id="ca-lb-title"></h3>
+          <p id="ca-lb-desc"></p>
+          <div class="lightbox-actions">
+            <a id="ca-lb-obj-link" class="btn-primary-gold" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Open Official Record ↗</a>
+            <button id="ca-lb-locate-btn" class="btn-secondary-vellum" type="button" data-i18n="lightboxLocateBtn">Locate on 3D Globe ↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 03. World Synchrony: Chronological Masterpieces in Selected Era -->
+    <section id="synchrony-section" class="editorial-section">
+      <div class="section-header">
+        <div id="ca-sync-eyebrow" class="section-eyebrow">03 · WORLD SYNCHRONY · CONTEMPORANEOUS MASTERPIECES</div>
+        <h2 id="ca-sync-title">325 Masterpieces Ordered From Oldest to Newest</h2>
+        <p id="ca-sync-intro">
+          Compare what distinct civilizations across Asia, Africa, Europe, Oceania, and the Americas were creating simultaneously during the selected era—sorted chronologically from earliest to latest creation date.
+        </p>
+      </div>
+
+      <div id="ca-synchrony-grid" class="ca-synchrony-grid"></div>
+    </section>
+  </main>
+
+  <footer id="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong data-i18n="footerBrand">Artifacts Archive</strong>
+        <span> · </span>
+        <span data-i18n="caFooterNote">Creation Age Chronicle (6000 BC – AD 2023) across 10 World Museums.</span>
+      </div>
+      <div class="footer-links">
+        <a id="ca-footer-prov-link" href="./index.html" data-i18n="navBackProvenance">← 3D Globe</a>
+        <a id="ca-footer-catalog-link" href="./catalog.html" data-i18n="navFullCatalog">Full Catalog (45k) ▤</a>
+        <a href="#era-deck" data-ca-section="era-deck" data-i18n="footerTopLink">Back to Top ↑</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./js/assets.js" defer></script>
+  <script src="./js/creation-age.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artifacts Archive · 文物档案库 — 10-Museum 3D Provenance Archive</title>
+  <meta name="description" content="Artifacts Archive: an interactive 3D spatial archive mapping over 45,000 catalogued artifacts (including domestic host-country collections) across 10 world museums." />
+  <meta property="og:title" content="Artifacts Archive · 文物档案库" />
+  <meta property="og:description" content="Explore over 45,000 world museum artifacts across ten encyclopedic collections on a sunlit vellum 3D globe and fly them home in a single click." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <header id="site-nav">
+    <div class="nav-inner">
+      <a class="brand-link" href="#prologue" data-nav-section="prologue">
+        <img class="brand-mark" src="./favicon.svg" alt="" width="26" height="26" />
+        <span id="brand-primary" class="brand-text-primary" data-i18n="brandPrimary">Artifacts Archive</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary sections">
+        <a href="#prologue" class="active" data-nav-section="prologue" data-i18n="navPrologue">01 · Prologue</a>
+        <a href="#globe-section" data-nav-section="globe-section" data-i18n="navGlobe">02 · 3D Globe</a>
+        <a href="#masterpieces" data-nav-section="masterpieces" data-i18n="navMasterpieces">03 · 61 Masterpieces</a>
+        <a href="#methodology" data-nav-section="methodology" data-i18n="navMethod">04 · Data &amp; Method</a>
+        <a id="nav-creation-age-link" class="nav-creation-pill" href="./creation-age.html" data-i18n="navCreationAge">Creation Age ✦</a>
+        <a id="nav-catalog-link" class="nav-creation-pill" href="./catalog.html" data-i18n="navFullCatalog">Full Catalog ▤</a>
+      </nav>
+      <div class="nav-right">
+        <div id="nav-museum-dropdown" class="museum-dropdown nav-museum-dropdown">
+          <button id="nav-museum-trigger" type="button" class="museum-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" data-i18n-title="navMuseumSwitchTip" title="Switch active museum">
+            <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v7h3v-7H4zm6 0v7h3v-7h-3zM2 22h19v-3H2v3zm14-12v7h3v-7h-3zm-4.5-9L2 6v2h19V6l-9.5-5z"/></svg>
+            <span id="nav-museum-current" class="md-current-name">British Museum</span>
+            <span class="md-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="nav-museum-menu" class="museum-dropdown-menu" role="listbox" aria-label="Select museum"></div>
+        </div>
+        <div class="lang-toggle" role="group" aria-label="Language selector">
+          <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
+        </div>
+        <button id="nav-return-home-btn" class="nav-cta-btn" type="button">
+          <svg class="gs-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L4 9v12h16V9l-8-6zm6 16h-3v-6H9v6H6v-9l6-4.5 6 4.5v9z"/></svg>
+          <span data-i18n="navReturnCta">Return Home (UK → 100)</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 01. Editorial Prologue Hero -->
+    <section id="prologue">
+      <div class="catalogue-kicker" data-i18n="heroKicker">Interactive Spatial Reconstruction · 1753 — 2013 Collection Archive</div>
+      <div class="hero-museum-bar" role="group" aria-label="Select museum exhibition">
+        <button type="button" class="hero-museum-pill active" data-museum="bm" aria-pressed="true" data-i18n="heroMuseumBm">British Museum · London</button>
+        <button type="button" class="hero-museum-pill" data-museum="met" aria-pressed="false" data-i18n="heroMuseumMet">The Met · New York</button>
+        <button type="button" class="hero-museum-pill" data-museum="hermitage" aria-pressed="false" data-i18n="heroMuseumHermitage">Hermitage · St. Petersburg</button>
+        <button type="button" class="hero-museum-pill" data-museum="louvre" aria-pressed="false" data-i18n="heroMuseumLouvre">Louvre · Paris</button>
+        <button type="button" class="hero-museum-pill" data-museum="berlin" aria-pressed="false" data-i18n="heroMuseumBerlin">Pergamon &amp; Neues · Berlin</button>
+        <button type="button" class="hero-museum-pill" data-museum="tnm" aria-pressed="false" data-i18n="heroMuseumTnm">Tokyo National · Tokyo</button>
+        <button type="button" class="hero-museum-pill" data-museum="smithsonian" aria-pressed="false" data-i18n="heroMuseumSmithsonian">Smithsonian Asian · D.C.</button>
+        <button type="button" class="hero-museum-pill" data-museum="quaibranly" aria-pressed="false" data-i18n="heroMuseumQuaibranly">Quai Branly · Paris</button>
+        <button type="button" class="hero-museum-pill" data-museum="rijks" aria-pressed="false" data-i18n="heroMuseumRijks">Rijksmuseum · Amsterdam</button>
+        <button type="button" class="hero-museum-pill" data-museum="vatican" aria-pressed="false" data-i18n="heroMuseumVatican">Vatican Museums · Rome</button>
+      </div>
+      <div class="global-scale-pill" data-i18n="globalScaleBanner">10 World Museums · 45,008 Catalogued Artifacts · 325 Verified HD Masterpieces</div>
+      <h1 id="hero-title" data-i18n="heroTitle">Artifacts Archive</h1>
+      <p class="hero-subtitle-en" data-i18n="heroSubtitle">What if 4,948 artifacts in The British Museum flew home across 99 countries?</p>
+      <p id="hero-lede" class="hero-lede" data-i18n="heroLede">
+        Founded in 1753 in Bloomsbury, London, The British Museum houses objects spanning two million years of human history.
+        Rather than locking provenance inside static catalogue tables, this interactive vellum globe places 4,948 documented works
+        onto deterministic lattices inside their 99 homelands—with verified museum photography, direct British Museum object links,
+        and one-click global repatriation flight.
+      </p>
+      <div class="hero-actions">
+        <button id="hero-return-home-btn" class="btn-primary-gold" type="button">
+          <svg class="gs-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L4 9v12h16V9l-8-6zm6 16h-3v-6H9v6H6v-9l6-4.5 6 4.5v9z"/></svg>
+          <span data-i18n="heroReturnBtn">One-Click Return Home (UK → 100 Countries)</span>
+        </button>
+        <a id="hero-explore-gallery-link" class="btn-secondary-vellum" href="#masterpieces" data-nav-section="masterpieces" data-i18n="heroBrowseBtn">
+          Browse 61 Curated Masterpieces ↓
+        </a>
+        <a id="hero-full-catalog-link" class="btn-secondary-vellum" href="./catalog.html" data-i18n="heroFullCatalogBtn">
+          Full 45,008 Catalog ▤
+        </a>
+      </div>
+      <div class="ledger-strip" aria-label="Archive summary statistics">
+        <a class="ledger-item ledger-link" href="#globe-section" data-nav-section="globe-section" data-i18n-title="ledgerArtifactsTip" title="Explore all catalogued artifacts on the 3D globe">
+          <div id="ledger-num-artifacts" class="ledger-num">5,468</div>
+          <div class="ledger-label" data-i18n="ledgerArtifactsLbl">Catalogued Artifacts →</div>
+        </a>
+        <button id="ledger-countries-btn" class="ledger-item ledger-link" type="button" data-i18n-title="ledgerCountriesTip" title="Browse all countries of origin (including host country)">
+          <div id="ledger-num-countries" class="ledger-num">100</div>
+          <div class="ledger-label" data-i18n="ledgerCountriesLbl">Countries of Origin →</div>
+        </button>
+        <button id="ledger-timeline-btn" class="ledger-item ledger-link" type="button" data-i18n-title="ledgerTimelineTip" title="Play chronological acquisition timeline">
+          <div id="ledger-num-timeline" class="ledger-num">1753–2013</div>
+          <div class="ledger-label" data-i18n="ledgerTimelineLbl">Acquisition Timeline ▶</div>
+        </button>
+        <a class="ledger-item ledger-link" href="#masterpieces" data-nav-section="masterpieces" data-i18n-title="ledgerMasterpiecesTip" title="Jump to the HD Masterpieces gallery">
+          <div id="ledger-num-masterpieces" class="ledger-num">61</div>
+          <div class="ledger-label" data-i18n="ledgerMasterpiecesLbl">Verified HD Masterpieces ↓</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- 02. Full-Viewport Interactive 3D Globe Explorer -->
+    <section id="globe-section" aria-label="Interactive 3D artifact globe explorer">
+      <canvas id="globe-canvas" aria-label="Interactive 3D globe of 5,468 British Museum artifacts across 100 countries"></canvas>
+
+      <button id="mobile-drawer-btn" type="button" aria-label="Toggle country list">
+        <svg class="gs-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.49 19l-5.73-5.73C15.53 12.2 16 10.91 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.41 0 2.7-.47 3.77-1.24L19 20.49 20.49 19zM5 9.5C5 7.01 7.01 5 9.5 5S14 7.01 14 9.5 11.99 14 9.5 14 5 11.99 5 9.5z"/></svg>
+        <span data-i18n="mobileCountriesBtn">Countries</span>
+      </button>
+
+      <div class="lang-toggle stage-lang-toggle" role="group" aria-label="Stage language selector">
+        <button type="button" class="lang-btn active" data-lang="en" aria-pressed="true">English</button>
+        <button type="button" class="lang-btn" data-lang="zh" aria-pressed="false">中文</button>
+      </div>
+
+      <div id="stage-header">
+        <div id="stage-header-title" class="stage-header-title" data-i18n="stageTitle">Artifacts Archive</div>
+        <div id="header-sub">5,468 artifacts · 100 countries</div>
+        <div id="active-country-banner"></div>
+      </div>
+
+      <div id="flight-banner" role="status" aria-live="polite"></div>
+
+      <aside id="left-sidebar" aria-label="Country and artifact explorer">
+        <div class="sidebar-topbar">
+          <span id="sidebar-heading">100 Countries</span>
+          <button id="sidebar-collapse-btn" type="button" data-i18n-title="sidebarToggleTip" title="Collapse or expand sidebar" aria-label="Toggle sidebar">−</button>
+        </div>
+
+        <div class="globe-lens-switch" role="group" aria-label="Globe exploration lens">
+          <button id="lens-by-museum" type="button" class="lens-btn active" aria-pressed="true" data-i18n="lensByMuseum">By Museum (10)</button>
+          <button id="lens-by-homeland" type="button" class="lens-btn" aria-pressed="false" data-i18n="lensByHomeland">By Homeland (101)</button>
+        </div>
+
+        <div id="sidebar-museum-switcher" class="sidebar-museum-switcher">
+          <div class="sidebar-museum-label" data-i18n="sidebarMuseumLbl">Museum Archive (10)</div>
+          <div id="sidebar-museum-dropdown" class="museum-dropdown sidebar-museum-dropdown">
+            <button id="sidebar-museum-trigger" type="button" class="museum-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="md-trigger-text">
+                <span id="sidebar-museum-current" class="md-current-name">British Museum</span>
+                <span id="sidebar-museum-meta" class="md-current-meta">London · UK · 5,468 items</span>
+              </span>
+              <span class="md-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="sidebar-museum-menu" class="museum-dropdown-menu" role="listbox" aria-label="Select museum archive"></div>
+          </div>
+        </div>
+
+        <div id="sidebar-homeland-switcher" class="sidebar-museum-switcher is-hidden">
+          <div class="sidebar-museum-label" data-i18n="sidebarHomelandLbl">Homeland Dispersal (101)</div>
+          <div id="sidebar-homeland-dropdown" class="museum-dropdown sidebar-museum-dropdown">
+            <button id="sidebar-homeland-trigger" type="button" class="museum-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+              <span class="md-trigger-text">
+                <span id="sidebar-homeland-current" class="md-current-name">China</span>
+                <span id="sidebar-homeland-meta" class="md-current-meta">3,675 items · 10 museums</span>
+              </span>
+              <span class="md-caret" aria-hidden="true">▾</span>
+            </button>
+            <div id="sidebar-homeland-menu" class="museum-dropdown-menu homeland-dropdown-menu" role="listbox" aria-label="Select homeland"></div>
+          </div>
+        </div>
+
+        <div class="sidebar-tabs" role="tablist" aria-label="Explorer view">
+          <button id="tab-all-countries" class="sidebar-tab active" type="button" role="tab" aria-selected="true" data-i18n="tabAllCountries">99 Countries</button>
+          <button id="tab-country-items" class="sidebar-tab" type="button" role="tab" aria-selected="false">China</button>
+        </div>
+
+        <div class="search-wrap">
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">
+              <svg class="gs-icon" viewBox="0 0 24 24"><path d="M20.49 19l-5.73-5.73C15.53 12.2 16 10.91 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.41 0 2.7-.47 3.77-1.24L19 20.49 20.49 19zM5 9.5C5 7.01 7.01 5 9.5 5S14 7.01 14 9.5 11.99 14 9.5 14 5 11.99 5 9.5z"/></svg>
+            </span>
+            <input id="country-search-input" type="text" maxlength="60" data-i18n-placeholder="searchPlaceholder" placeholder="Search country or artifact..." aria-label="Search country or artifact" />
+            <button id="search-clear-btn" type="button" data-i18n-title="clearSearchTip" title="Clear search" aria-label="Clear search">×</button>
+          </div>
+        </div>
+
+        <div id="country-list-view"></div>
+
+        <div id="country-detail-view">
+          <div class="detail-header-row">
+            <span id="detail-country-title">China</span>
+            <button id="back-to-countries-btn" type="button">
+              <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+              <span data-i18n="backAll99">All 99</span>
+            </button>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div id="kpi-artifacts" class="kpi-val">330</div>
+              <div id="kpi-lbl-left" class="kpi-lbl" data-i18n="kpiArtifacts">Artifacts</div>
+            </div>
+            <div class="kpi-card">
+              <div id="kpi-dates" class="kpi-val">5000BC–2013</div>
+              <div id="kpi-lbl-right" class="kpi-lbl" data-i18n="kpiDateRange">Date Range</div>
+            </div>
+          </div>
+          <div id="homeland-museum-breakdown" class="homeland-museum-breakdown is-hidden"></div>
+          <div id="artifact-thumb-grid"></div>
+        </div>
+      </aside>
+
+      <article id="artifact-modal" class="scrubber-offset" aria-label="Selected artifact details">
+        <button id="modal-preview-wrap" type="button" data-i18n-title="modalPreviewTip" title="Click to enlarge high-resolution photograph">
+          <canvas id="modal-preview-canvas" width="420" height="420"></canvas>
+          <span class="zoom-badge" data-i18n="zoomBadge">HD Zoom</span>
+        </button>
+        <div class="modal-body">
+          <div class="modal-nav-controls">
+            <button id="modal-prev-btn" type="button" class="modal-step-btn" data-i18n-title="prevArtifactTip" title="Previous artifact (←)" aria-label="Previous artifact">‹</button>
+            <button id="modal-next-btn" type="button" class="modal-step-btn" data-i18n-title="nextArtifactTip" title="Next artifact (→)" aria-label="Next artifact">›</button>
+            <button id="modal-close-btn" type="button" aria-label="Close details">
+              <svg class="gs-icon gs-icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"/></svg>
+            </button>
+          </div>
+          <div>
+            <div class="modal-badge-row">
+              <span id="modal-museum-pill" class="modal-pill modal-pill-museum is-hidden"></span>
+              <span id="modal-country-pill" class="modal-pill"></span>
+              <span id="modal-reg-pill" class="modal-pill modal-pill-code"></span>
+            </div>
+            <h2 id="modal-title"></h2>
+            <div id="modal-meta"></div>
+            <p id="modal-desc"></p>
+          </div>
+          <div class="modal-actions">
+            <a id="modal-bm-link" class="modal-action-link" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">View Object on British Museum ↗</a>
+            <a id="modal-country-bm-link" class="modal-share-btn" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Country Catalogue ↗</a>
+            <button id="modal-homeland-flip-btn" class="modal-share-btn" type="button"></button>
+            <button id="modal-zoom-btn" class="modal-share-btn" type="button" data-i18n="hdPhotoBtn">HD Photo</button>
+            <button id="modal-copy-link-btn" class="modal-share-btn" type="button" data-i18n-title="copyBmUrlTip" title="Copy official British Museum object URL">Copy BM URL</button>
+          </div>
+        </div>
+      </article>
+
+      <nav id="bottom-dock" aria-label="Globe visualization controls">
+        <div id="timeline-scrubber" class="timeline-scrubber open" role="region" aria-label="Historical acquisition timeline scrubber">
+          <div class="tl-top-row">
+            <span class="tl-mode-tag" data-i18n="tlAcqLabel">Acquisition</span>
+            <button id="tl-play-btn" type="button" class="tl-play-btn" data-i18n-title="tlPlayTip" title="Play or pause chronological wave" aria-label="Play or pause timeline">▶</button>
+            <span id="tl-year-badge" class="tl-year-badge">1753–2013</span>
+            <input id="tl-slider" type="range" min="1753" max="2035" step="1" value="2035" aria-label="Acquisition year scrubber" />
+            <span id="tl-count-readout" class="tl-count-readout">5,468 / 5,468</span>
+            <button id="tl-reset-btn" type="button" class="tl-reset-btn active" data-i18n="tlAllYearsBtn">Reset</button>
+            <a id="tl-creation-page-link" class="tl-creation-link" href="./creation-age.html" data-i18n="tlCreationLink">Creation Age ↗</a>
+            <button id="tl-close-btn" type="button" class="tl-close-btn" data-i18n-title="tlCloseTip" title="Hide timeline bar" aria-label="Hide timeline bar">×</button>
+          </div>
+          <div class="tl-bottom-row">
+            <div id="tl-milestones" class="tl-milestones" role="group" aria-label="Historical milestones"></div>
+            <span id="tl-era-caption" class="tl-era-caption" data-i18n="tlDefaultHint">Play ▶ or drag slider to watch acquisitions fly into museums &amp; land</span>
+          </div>
+        </div>
+        <div class="dock-row">
+          <span class="dock-stat"><strong id="stat-artifacts">4,948</strong> <span data-i18n="dockArtifactsWord">artifacts</span> &nbsp;<strong id="stat-countries">99</strong> <span id="stat-countries-word" data-i18n="dockCountriesWord">countries</span></span>
+          <button id="mode-flat" class="dock-btn" type="button" data-i18n="modeFlat">Flat</button>
+          <button id="mode-standing" class="dock-btn active" type="button" data-i18n="modeStanding">Standing</button>
+          <button id="mode-both" class="dock-btn" type="button" data-i18n="modeBoth">Both</button>
+          <button id="mode-particles" class="dock-btn" type="button" data-i18n="modeParticles">Particles</button>
+          <label class="size-control" for="size-slider">
+            <span data-i18n="sizeLabel">Size</span>
+            <input id="size-slider" type="range" min="0.4" max="2.2" step="0.1" value="1.0" />
+            <span id="size-readout">1.0</span>
+          </label>
+        </div>
+        <div class="dock-row">
+          <button id="btn-rotate" class="dock-btn" type="button" data-i18n="btnRotate">Rotate</button>
+          <button id="btn-go-home" class="dock-btn action-highlight" type="button" data-i18n-title="btnGoHomeTip" title="Fly all 4,948 artifacts from the UK back to their 99 countries of origin">
+            <svg class="gs-icon gs-icon-left" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3L4 9v12h16V9l-8-6zm6 16h-3v-6H9v6H6v-9l6-4.5 6 4.5v9z"/></svg>Return Home
+          </button>
+          <button id="btn-collect" class="dock-btn" type="button" data-i18n-title="btnCollectTip" title="Gather all 4,948 artifacts chronologically (1753–2013) into London">
+            <svg class="gs-icon gs-icon-left" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7L8 5z"/></svg>Collect to UK
+          </button>
+          <button id="btn-timeline" class="dock-btn active" type="button" data-i18n-title="btnTimelineTip" title="Toggle interactive historical timeline scrubber" data-i18n="btnTimeline">Timeline</button>
+          <button id="btn-random" class="dock-btn" type="button" data-i18n-title="btnHighlightTip" title="Cycle through curated museum highlights">
+            <svg class="gs-icon gs-icon-sm gs-icon-left" viewBox="0 0 24 24" aria-hidden="true"><path d="M12,22c0-5.52,4.48-10,10-10c-5.52,0-10-4.48-10-10c0,5.52-4.48,10-10,10C7.52,12,12,16.48,12,22z"/></svg><span data-i18n="btnHighlight">Highlight</span>
+          </button>
+          <button id="btn-labels" class="dock-btn" type="button" data-i18n="btnLabels">Labels</button>
+          <button id="btn-origins" class="dock-btn" type="button" data-i18n="btnOrigins">Origins</button>
+          <button id="btn-ring1" class="dock-btn" type="button" data-i18n="btnRing1">Ring</button>
+          <button id="btn-ring2" class="dock-btn" type="button" data-i18n="btnRing2">Ring2</button>
+          <button id="btn-ring3" class="dock-btn active" type="button" data-i18n="btnRing3">Ring3</button>
+          <button id="btn-aurora" class="dock-btn active" type="button" data-i18n="btnAurora">Aurora</button>
+        </div>
+      </nav>
+    </section>
+
+    <div id="globe-tooltip"></div>
+
+    <!-- High-Resolution Museum Plate Lightbox Modal -->
+    <div id="photo-lightbox" role="dialog" aria-modal="true" aria-label="High-resolution artifact photograph">
+      <div class="lightbox-card">
+        <button id="lightbox-close-btn" type="button" aria-label="Close high-resolution preview">×</button>
+        <div class="lightbox-stage">
+          <button id="lightbox-prev-btn" type="button" class="lightbox-step-btn prev" data-i18n-title="prevArtifactTip" title="Previous artifact (←)" aria-label="Previous artifact">‹</button>
+          <canvas id="lightbox-canvas" width="560" height="560"></canvas>
+          <img id="lightbox-hd-img" alt="" />
+          <button id="lightbox-next-btn" type="button" class="lightbox-step-btn next" data-i18n-title="nextArtifactTip" title="Next artifact (→)" aria-label="Next artifact">›</button>
+        </div>
+        <div class="lightbox-info">
+          <div id="lightbox-kicker" class="lightbox-kicker"></div>
+          <h3 id="lightbox-title"></h3>
+          <p id="lightbox-desc"></p>
+          <div class="lightbox-actions">
+            <a id="lightbox-bm-link" class="btn-primary-gold" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Open Official British Museum Record ↗</a>
+            <a id="lightbox-country-bm-link" class="btn-secondary-vellum" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer">Country Catalogue ↗</a>
+            <button id="lightbox-locate-btn" class="btn-secondary-vellum" type="button" data-i18n="lightboxLocateBtn">Locate on 3D Globe ↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 03. Curated Masterpieces Exhibition Gallery -->
+    <section id="masterpieces" class="editorial-section">
+      <div class="section-header">
+        <div class="section-eyebrow" data-i18n="sec3Eyebrow">03 · Verified British Museum Archival Plates</div>
+        <h2 data-i18n="sec3Title">57 Iconic Masterpieces Across 29 Countries</h2>
+        <p data-i18n="sec3Intro">
+          Every plate below features verified British Museum photography and links directly to its official British Museum record—or click Locate on Globe ↑ to fly to its homeland pin.
+        </p>
+      </div>
+
+      <div class="gallery-toolbar">
+        <div class="gallery-scope-toggle" role="group" aria-label="Masterpieces scope">
+          <button id="scope-active-museum" type="button" class="scope-btn active" aria-pressed="true">British Museum (61)</button>
+          <button id="scope-all-museums" type="button" class="scope-btn" aria-pressed="false">All 10 Museums (325)</button>
+        </div>
+        <div class="gallery-search-box">
+          <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.49 19l-5.73-5.73C15.53 12.2 16 10.91 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.41 0 2.7-.47 3.77-1.24L19 20.49 20.49 19zM5 9.5C5 7.01 7.01 5 9.5 5S14 7.01 14 9.5 11.99 14 9.5 14 5 11.99 5 9.5z"/></svg>
+          <input id="gallery-search-input" type="text" maxlength="60" data-i18n-placeholder="gallerySearchPlaceholder" placeholder="Filter masterpieces by title, country, or museum..." aria-label="Filter masterpieces" />
+          <button id="gallery-search-clear" type="button" aria-label="Clear filter">×</button>
+        </div>
+        <a id="gallery-full-catalog-link" class="btn-secondary-vellum gallery-catalog-cta" href="./catalog.html" data-i18n="galleryCatalogCta">All 45,008 in Full Catalog ↗</a>
+      </div>
+
+      <div id="region-filters" class="region-filter-bar" role="tablist" aria-label="Filter masterpieces by region">
+        <button class="filter-tab active" type="button" data-region="all" role="tab" aria-selected="true" data-i18n="regAll">All 61 Plates</button>
+        <button class="filter-tab" type="button" data-region="host" role="tab" aria-selected="false" data-i18n="regHost">Host Country (4)</button>
+        <button class="filter-tab" type="button" data-region="asia" role="tab" aria-selected="false" data-i18n="regAsia">East &amp; South Asia (17)</button>
+        <button class="filter-tab" type="button" data-region="egypt" role="tab" aria-selected="false" data-i18n="regEgypt">Egypt &amp; Nubia (7)</button>
+        <button class="filter-tab" type="button" data-region="neareast" role="tab" aria-selected="false" data-i18n="regNeareast">Near East &amp; Anatolia (10)</button>
+        <button class="filter-tab" type="button" data-region="med" role="tab" aria-selected="false" data-i18n="regMed">Greece, Rome &amp; Europe (11)</button>
+        <button class="filter-tab" type="button" data-region="africa" role="tab" aria-selected="false" data-i18n="regAfrica">Africa (7)</button>
+        <button class="filter-tab" type="button" data-region="americas" role="tab" aria-selected="false" data-i18n="regAmericas">Americas &amp; Rapa Nui (5)</button>
+      </div>
+
+      <div id="masterpieces-grid"></div>
+    </section>
+
+    <!-- 04. Top Origin Countries & Methodology -->
+    <section id="methodology" class="editorial-section">
+      <div class="section-header">
+        <div class="section-eyebrow" data-i18n="sec4Eyebrow">04 · Provenance Distribution &amp; Architecture</div>
+        <h2 data-i18n="sec4Title">Concentration by Origin &amp; Spatial Methodology</h2>
+        <p data-i18n="sec4Intro">
+          Over half of the 4,948 mapped artifacts originate from ten countries spanning East Asia, Mesopotamia, the Nile Valley, and the Mediterranean.
+        </p>
+      </div>
+
+      <div class="museums-compare-card">
+        <div class="museums-compare-header">
+          <div>
+            <h3 data-i18n="compare10Title">10-Museum Comparative Archive (45,008 Catalogued Artifacts)</h3>
+            <p class="panel-subnote" data-i18n="compare10Sub">Click any museum row to switch the 3D globe. Gold shows domestic host-country holdings; sepia shows international provenance.</p>
+          </div>
+          <div class="compare-legend">
+            <span class="legend-chip"><span class="legend-swatch host"></span><span data-i18n="legendHost">Host Country</span></span>
+            <span class="legend-chip"><span class="legend-swatch intl"></span><span data-i18n="legendIntl">International</span></span>
+          </div>
+        </div>
+        <div id="museums-compare-bars"></div>
+      </div>
+
+      <div class="method-two-col">
+        <div class="top-origins-panel">
+          <h3 data-i18n="top12Title">Top 12 Countries by Catalogued Count</h3>
+          <p class="panel-subnote" data-i18n="top12Sub">Click any country bar to fly the 3D globe to its homeland mosaic.</p>
+          <div id="top-origins-bars"></div>
+        </div>
+
+        <div class="method-notes">
+          <div class="method-item">
+            <div class="method-num" data-i18n="m1Num">METHOD 01 · SPATIAL LATTICE</div>
+            <h3 data-i18n="m1Title">Point-in-Polygon Homeland Grids</h3>
+            <p data-i18n="m1Body">
+              Naive maps stack hundreds of markers onto a single capital-city pin. Using Natural Earth 110m vector boundaries, each country’s
+              interior is sampled on an adaptive latitude-longitude lattice (with a golden-angle spiral fallback for small islands) so all 330 Chinese
+              or 293 Egyptian works form a legible national mosaic.
+            </p>
+          </div>
+          <div class="method-item">
+            <div class="method-num" data-i18n="m2Num">METHOD 02 · GREAT-CIRCLE KINEMATICS</div>
+            <h3 data-i18n="m2Title">Chronological Gathering &amp; One-Click Repatriation</h3>
+            <p data-i18n="m2Body">
+              Every artifact holds dual spherical unit vectors: its homeland grid coordinate and Bloomsbury, London (51.52°N, 0.13°W).
+              Acquisition flights stagger departures between 1753 and 2013; clicking Return Home launches all 4,948 cards
+              simultaneously along cubic-eased parabolic great-circle arcs back to their 99 origins.
+            </p>
+          </div>
+          <div class="method-item">
+            <div class="method-num" data-i18n="m3Num">METHOD 03 · 64-PLATE HD ATLAS &amp; DIRECT BM LINKS</div>
+            <h3 data-i18n="m3Title">Verified Provenance &amp; 60 FPS Projection</h3>
+            <p data-i18n="m3Body">
+              All 4,948 front-hemisphere cards are backface-culled, painter-sorted by depth, and blitted from a 64-plate high-resolution British Museum
+              sprite atlas—paired with direct links to official British Museum object records and illustrated country catalogues.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong data-i18n="footerBrand">Artifacts Archive</strong>
+        <span data-i18n="footerCredit"> — Interactive 10-museum spatial archive linking open records from </span>
+        <a id="footer-col-link" href="https://www.britishmuseum.org/collection" target="_blank" rel="noopener noreferrer" data-i18n="footerBmCol">British Museum Collection Online ↗</a>
+        <span> &amp; </span>
+        <a id="footer-gal-link" href="https://www.britishmuseum.org/collection/galleries" target="_blank" rel="noopener noreferrer" data-i18n="footerBmGal">Museum Galleries ↗</a>.
+      </div>
+      <div class="footer-links">
+        <a href="#globe-section" data-nav-section="globe-section" data-i18n="footerGlobeLink">3D Globe ↑</a>
+        <a href="#masterpieces" data-nav-section="masterpieces" data-i18n="footerMasterLink">61 Masterpieces ↑</a>
+        <a id="footer-catalog-link" href="./catalog.html" data-i18n="navFullCatalog">Full Catalog ▤</a>
+        <a href="#prologue" data-nav-section="prologue" data-i18n="footerTopLink">Back to Top ↑</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./js/assets.js" defer></script>
+  <script src="./js/app.js" defer></script>
+</body>
+</html>

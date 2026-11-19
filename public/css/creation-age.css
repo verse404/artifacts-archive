@@ -1,0 +1,780 @@
+/* ==========================================================================
+   Creation Age Chronicle — Standalone Page Stylesheet
+   Matches sunlit vellum museum palette with strict zero-overlap era layout
+   ========================================================================== */
+
+.ca-page-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(232, 219, 196, 0.72);
+  border: 1px solid var(--border-sepia-strong);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ca-page-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.ca-page-pill {
+  text-decoration: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  color: var(--ink-body);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ca-page-pill:hover {
+  color: var(--ink-strong);
+  background: rgba(255, 250, 240, 0.65);
+}
+
+.ca-page-pill.active {
+  background: linear-gradient(135deg, #c99648, #9b6b24);
+  color: #fffaf0;
+  box-shadow: 0 2px 6px rgba(92, 62, 18, 0.22);
+}
+
+/* Section 01: Era Control Deck */
+#era-deck,
+#chrono-globe-section,
+#synchrony-section {
+  scroll-margin-top: 68px;
+}
+
+.ca-hero-deck {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 26px 24px 18px;
+}
+
+.ca-hero-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ca-eyebrow {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent-brass-deep);
+  margin-bottom: 6px;
+}
+
+#ca-main-title {
+  margin: 0 0 8px;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 700;
+  line-height: 1.12;
+  color: var(--ink-strong);
+}
+
+html[lang="zh-CN"] #ca-main-title {
+  font-family: 'Noto Serif SC', serif;
+  font-size: clamp(24px, 2.7vw, 33px);
+}
+
+#ca-main-sub {
+  margin: 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.58;
+  color: var(--ink-body);
+}
+
+.ca-live-kpis {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.ca-kpi-box {
+  min-width: 112px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--bg-paper-strong);
+  border: 1px solid var(--border-sepia-strong);
+  box-shadow: var(--shadow-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ca-kpi-num {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: #6b491c;
+  font-variant-numeric: tabular-nums;
+}
+
+.ca-kpi-lbl {
+  margin-top: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* 8 Era Selector Cards */
+.era-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 14px;
+}
+
+.era-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(176, 150, 113, 0.38);
+  background: rgba(251, 246, 236, 0.84);
+  color: var(--ink-strong);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.era-card-btn:hover {
+  transform: translateY(-1px);
+  border-color: #c29142;
+  background: rgba(255, 251, 243, 0.96);
+  box-shadow: 0 6px 16px rgba(68, 46, 16, 0.09);
+}
+
+.era-card-btn.active {
+  background: linear-gradient(135deg, #2d2217, #41301e);
+  border-color: #c89646;
+  color: #fbf6eb;
+  box-shadow: 0 8px 20px rgba(45, 34, 23, 0.20);
+}
+
+.era-card-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.era-card-span {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #8f6322;
+}
+
+.era-card-btn.active .era-card-span {
+  color: #f0ca82;
+}
+
+.era-card-count {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(196, 154, 87, 0.18);
+  color: #6b491c;
+  font-variant-numeric: tabular-nums;
+}
+
+.era-card-btn.active .era-card-count {
+  background: rgba(240, 202, 130, 0.22);
+  color: #ffe7b3;
+}
+
+.era-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.era-card-sub {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.era-card-btn.active .era-card-sub {
+  color: rgba(251, 246, 235, 0.76);
+}
+
+/* Histogram & Custom Window Bar */
+.ca-chrono-panel {
+  background: var(--bg-paper-strong);
+  border: 1px solid var(--border-sepia-strong);
+  border-radius: 15px;
+  padding: 12px 16px 11px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.ca-chrono-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ca-window-readout-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ca-walk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(142, 98, 32, 0.55);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #d7af6c, #b17d31);
+  color: #fffaf0;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(92, 62, 18, 0.18);
+}
+
+.ca-walk-btn:hover {
+  filter: brightness(1.05);
+}
+
+.ca-window-badge {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #4c3312;
+  background: rgba(226, 208, 176, 0.72);
+  border: 1px solid rgba(168, 134, 82, 0.42);
+  border-radius: 8px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.ca-era-story {
+  font-size: 12.5px;
+  color: var(--ink-body);
+}
+
+.ca-reset-pill {
+  border: 1px solid rgba(176, 150, 113, 0.45);
+  border-radius: 8px;
+  background: rgba(238, 227, 206, 0.68);
+  color: var(--ink-body);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ca-reset-pill:hover {
+  background: rgba(222, 205, 174, 0.94);
+  color: var(--ink-strong);
+}
+
+.ca-histogram-wrap {
+  width: 100%;
+  height: 82px;
+  margin-bottom: 6px;
+}
+
+#era-histogram {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.ca-custom-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(176, 150, 113, 0.22);
+}
+
+.ca-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.ca-slider-group input[type="range"] {
+  flex: 1;
+  accent-color: #9c6e29;
+  cursor: pointer;
+}
+
+.ca-bound-val {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  min-width: 74px;
+  text-align: right;
+}
+
+/* Section 02: 3D Civilizations Globe Stage */
+#chrono-globe-section {
+  position: relative;
+  width: min(1440px, calc(100% - 32px));
+  height: min(82vh, 780px);
+  min-height: 590px;
+  margin: 8px auto 36px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid var(--border-sepia-strong);
+  background: radial-gradient(circle at 56% 46%, #fbf4e4 0%, #f1e4cb 58%, #e5d3b1 100%);
+  box-shadow: 0 22px 54px rgba(62, 44, 20, 0.12);
+}
+
+#ca-globe-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+#ca-stage-header {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 14px;
+  background: rgba(252, 248, 240, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(176, 150, 113, 0.34);
+  pointer-events: none;
+}
+
+#ca-globe-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+#ca-globe-sub {
+  margin-top: 2px;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+#ca-sidebar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  bottom: 14px;
+  width: 280px;
+  z-index: 24;
+  background: rgba(251, 246, 236, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(176, 150, 113, 0.42);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(56, 38, 16, 0.10);
+  transition: height 0.2s ease;
+}
+
+#ca-sidebar.collapsed {
+  bottom: auto;
+  height: 42px;
+}
+
+#ca-sidebar.collapsed .search-wrap,
+#ca-sidebar.collapsed #ca-country-list,
+#ca-sidebar.collapsed #ca-country-detail {
+  display: none !important;
+}
+
+#ca-sidebar-heading {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+#ca-sidebar-collapse {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#ca-search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-size: 12px;
+  color: var(--ink-strong);
+  font-family: inherit;
+}
+
+#ca-search-clear {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+#ca-search-clear.visible {
+  display: inline-block;
+}
+
+#ca-country-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 10px;
+}
+
+#ca-country-detail {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 12px;
+}
+
+#ca-country-detail.active {
+  display: flex;
+}
+
+#ca-detail-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #6f512b;
+}
+
+#ca-back-countries-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid rgba(176, 150, 113, 0.38);
+  background: rgba(240, 230, 211, 0.72);
+  color: var(--ink-body);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+#ca-thumb-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  gap: 8px;
+  align-content: start;
+}
+
+#ca-artifact-modal {
+  position: absolute;
+  bottom: calc(var(--ca-dock-h, 58px) + 22px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100% - 36px));
+  z-index: 30;
+  background: var(--bg-paper-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(176, 150, 113, 0.45);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 18px 46px rgba(56, 38, 16, 0.20);
+  display: none;
+  gap: 15px;
+  align-items: stretch;
+  transition: bottom 0.2s ease, left 0.22s ease, width 0.22s ease;
+}
+
+#ca-artifact-modal.open {
+  display: flex;
+}
+
+#ca-modal-preview-btn {
+  position: relative;
+  width: 156px;
+  height: 156px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(150, 122, 82, 0.38);
+  background: #231f1a;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+#ca-modal-preview-btn canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#ca-modal-close {
+  border: none;
+  background: rgba(226, 212, 188, 0.55);
+  color: var(--ink-body);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#ca-modal-title {
+  margin: 5px 0 4px;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  line-height: 1.2;
+}
+
+#ca-modal-meta {
+  font-size: 11.5px;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+#ca-modal-desc {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-body);
+}
+
+.ca-pill-gold {
+  background: linear-gradient(135deg, #c99648, #9c6c25);
+  border-color: #8c5e1c;
+  color: #fffaf0;
+  font-weight: 700;
+}
+
+#ca-bottom-dock {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  background: rgba(252, 248, 239, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-sepia);
+  border-radius: 16px;
+  padding: 8px 16px;
+  box-shadow: var(--shadow-elevated);
+  width: max-content;
+  max-width: calc(100% - 28px);
+  transition: left 0.22s ease, max-width 0.22s ease;
+}
+
+@media (min-width: 821px) {
+  #chrono-globe-section:has(#ca-sidebar:not(.collapsed)) #ca-stage-header {
+    left: calc(50% + 147px);
+    max-width: calc(100% - 322px);
+  }
+
+  #chrono-globe-section:has(#ca-sidebar:not(.collapsed)) #ca-bottom-dock {
+    left: calc(50% + 147px);
+    max-width: calc(100% - 322px);
+  }
+
+  #chrono-globe-section:has(#ca-sidebar:not(.collapsed)) #ca-artifact-modal {
+    left: calc(50% + 147px);
+    width: min(720px, calc(100% - 322px));
+  }
+}
+
+#ca-size-slider {
+  accent-color: #9c6e29;
+}
+
+#ca-tooltip {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  display: none;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(36, 27, 18, 0.92);
+  color: #fbf6eb;
+  font-size: 11.5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+/* Lightbox reuse */
+#ca-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(24, 18, 12, 0.82);
+  backdrop-filter: blur(10px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#ca-lightbox.open {
+  display: flex;
+}
+
+#ca-lb-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 5;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 248, 235, 0.28);
+  background: rgba(30, 22, 14, 0.72);
+  color: #fffaf0;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#ca-lb-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+}
+
+#ca-lb-img.loaded {
+  opacity: 1;
+}
+
+/* Section 03: World Synchrony Chronological Grid */
+.ca-synchrony-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(286px, 1fr));
+  gap: 20px;
+}
+
+.ca-date-ribbon {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(38, 27, 15, 0.88);
+  border: 1px solid rgba(232, 190, 108, 0.65);
+  color: #ffe5ad;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ca-museum-ribbon {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 3;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(252, 246, 234, 0.92);
+  color: #2c2116;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+@media (max-width: 1040px) {
+  .ca-sec-links {
+    display: none;
+  }
+  .era-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .ca-hero-deck {
+    padding: 18px 14px 14px;
+  }
+  .ca-custom-sliders {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .ca-slider-group {
+    flex-wrap: wrap;
+  }
+  .ca-slider-group input[type="range"] {
+    min-width: 0;
+  }
+  #ca-sidebar {
+    width: 224px;
+  }
+  #ca-stage-header,
+  #ca-bottom-dock,
+  #ca-artifact-modal {
+    left: 50%;
+  }
+}

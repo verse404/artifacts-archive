@@ -1,0 +1,9 @@
+# Local single-file mirror bundles (generated from ./public)
+standalone-*.html
+
+# Python / OS artifacts
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
