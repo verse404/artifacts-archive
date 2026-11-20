@@ -59,7 +59,7 @@ ARCHIVE_SUMMARY = {
     "domesticHostHoldings": 5400,
     "creationSpan": "6000 BC - AD 2023",
     "acquisitionSpan": "1506-2023",
-    "pages": ["/index.html", "/creation-age.html", "/catalog.html"],
+    "pages": ["/index.html", "/stories.html", "/creation-age.html", "/catalog.html"],
     "topOrigins": [
         {"countryEn": "China", "countryZh": "中国", "count": 3675},
         {"countryEn": "Italy", "countryZh": "意大利", "count": 2746},

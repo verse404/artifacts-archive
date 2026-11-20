@@ -158,6 +158,7 @@
     en: {
       brandPrimary: 'Artifacts Archive',
       navBackProvenance: '← 3D Globe',
+      navStories: 'Stories ✦',
       navCreationCurrent: 'Creation Age ✦',
       navFullCatalog: 'Full Catalog (45k) ▤',
       caNavEras: '01 · Era Filter',
@@ -201,6 +202,7 @@
     zh: {
       brandPrimary: '文物档案库',
       navBackProvenance: '← 3D 地球仪',
+      navStories: '策展故事 ✦',
       navCreationCurrent: '文明纪年 ✦',
       navFullCatalog: '全部名录 (4.5万) ▤',
       caNavEras: '01 · 纪年筛选',
@@ -1482,16 +1484,21 @@
     }
 
     const provHref = provenanceBaseHref();
-    const onX20 = (window.location.pathname || '').includes('artifacts-creation-age');
+    const onX20 = (window.location.pathname || '').includes('artifacts-creation-age') || (window.location.pathname || '').includes('/www/');
+    const stHref = (onX20 ? './artifacts-stories.html' : './stories.html') + (state.lang === 'zh' ? '#lang=zh' : '');
     const catHref = (onX20 ? './artifacts-catalog.html' : './catalog.html') + (state.lang === 'zh' ? '#lang=zh' : '');
     const back1 = document.getElementById('ca-back-provenance-link');
     const back2 = document.getElementById('ca-brand-back-link');
     const back3 = document.getElementById('ca-footer-prov-link');
+    const st1 = document.getElementById('ca-nav-stories-link');
+    const st2 = document.getElementById('ca-footer-stories-link');
     const cat1 = document.getElementById('ca-nav-catalog-link');
     const cat2 = document.getElementById('ca-footer-catalog-link');
     if (back1) back1.href = provHref;
     if (back2) back2.href = provHref;
     if (back3) back3.href = provHref;
+    if (st1) st1.href = stHref;
+    if (st2) st2.href = stHref;
     if (cat1) cat1.href = catHref;
     if (cat2) cat2.href = catHref;
   }

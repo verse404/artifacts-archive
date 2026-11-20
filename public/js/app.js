@@ -141,6 +141,8 @@
       tlAllYearsBtn: 'Reset',
       tlCloseTip: 'Hide timeline bar',
       tlDefaultHint: 'Play ▶ or drag slider to watch acquisitions fly into museums & land',
+      navStories: 'Stories ✦',
+      heroStoriesBtn: '5 Curator Stories ✦',
       navCreationAge: 'Creation Age ✦',
       navFullCatalog: 'Full Catalog ▤',
       heroFullCatalogBtn: 'Full 45,008 Catalog ▤',
@@ -263,6 +265,8 @@
       tlAllYearsBtn: '重置回乡',
       tlCloseTip: '隐藏时间轴面板',
       tlDefaultHint: '点击 ▶ 播放或拖动滑块，观看历年入藏文物起飞并最终落馆',
+      navStories: '策展故事 ✦',
+      heroStoriesBtn: '五大策展故事线 ✦',
       navCreationAge: '文明纪年 ✦',
       navFullCatalog: '全部名录 ▤',
       heroFullCatalogBtn: '全部 45,008 件总名录 ▤',
@@ -2135,16 +2139,25 @@
     }
 
     const onX20 = (window.location.pathname || '').includes('/www/');
+    const stHref = (onX20 ? './artifacts-stories.html' : './stories.html') + (state.lang === 'zh' ? '#lang=zh' : '');
     const caHref = (onX20 ? './artifacts-creation-age.html' : './creation-age.html') + (state.lang === 'zh' ? '#lang=zh' : '');
     const catBase = onX20 ? './artifacts-catalog.html' : './catalog.html';
     const catHref = catBase + (state.lang === 'zh' ? '#lang=zh' : '');
+    const elNavSt = document.getElementById('nav-stories-link');
+    const elHeroSt = document.getElementById('hero-stories-link');
+    const elFootSt = document.getElementById('footer-stories-link');
     const elNavCa = document.getElementById('nav-creation-age-link');
+    const elFootCa = document.getElementById('footer-creation-link');
     const elTlCa = document.getElementById('tl-creation-page-link');
     const elNavCat = document.getElementById('nav-catalog-link');
     const elHeroCat = document.getElementById('hero-full-catalog-link');
     const elFootCat = document.getElementById('footer-catalog-link');
     const elGalCat = document.getElementById('gallery-full-catalog-link');
+    if (elNavSt) elNavSt.href = stHref;
+    if (elHeroSt) elHeroSt.href = stHref;
+    if (elFootSt) elFootSt.href = stHref;
     if (elNavCa) elNavCa.href = caHref;
+    if (elFootCa) elFootCa.href = caHref;
     if (elTlCa) elTlCa.href = caHref;
     if (elNavCat) elNavCat.href = catHref;
     if (elHeroCat) elHeroCat.href = catHref;

@@ -161,6 +161,7 @@
     en: {
       brandPrimary: 'Artifacts Archive',
       navProvenance: '← 3D Globe',
+      navStories: 'Stories ✦',
       navCreationAge: 'Creation Age ✦',
       navCatalogCurrent: 'Full Catalog (45,008) ▤',
       secFilterNav: '01 · Filter & Summary',
@@ -237,6 +238,7 @@
     zh: {
       brandPrimary: '文物档案库',
       navProvenance: '← 3D 地球仪',
+      navStories: '策展故事 ✦',
       navCreationAge: '文明纪年 ✦',
       navCatalogCurrent: '全部名录 (45,008) ▤',
       secFilterNav: '01 · 多维筛选与总览',
@@ -1789,11 +1791,16 @@
     }
 
     const provBase = provenancePageBase();
+    const stBase = isStandaloneBundle() ? './artifacts-stories.html' : './stories.html';
     const ageBase = creationAgePageBase();
     const langHash = state.lang === 'zh' ? '#lang=zh' : '';
     document.getElementById('cat-brand-back-link').href = provBase + langHash;
     document.getElementById('cat-nav-prov-link').href = provBase + langHash;
     document.getElementById('cat-footer-prov-link').href = provBase + langHash;
+    const st1 = document.getElementById('cat-nav-stories-link');
+    const st2 = document.getElementById('cat-footer-stories-link');
+    if (st1) st1.href = stBase + langHash;
+    if (st2) st2.href = stBase + langHash;
     document.getElementById('cat-nav-age-link').href = ageBase + langHash;
     document.getElementById('cat-footer-age-link').href = ageBase + langHash;
   }
