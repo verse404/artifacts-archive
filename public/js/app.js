@@ -454,7 +454,22 @@
   const GLOBE_MIP_SIZE = 96;
   const DEG2RAD = Math.PI / 180;
   const atlasCache = {};
+  const atlasPromises = {};
   let activeAtlas = null;
+  let loadedAtlasCount = 0;
+
+  function repaintDeferredCanvases(mid) {
+    const list = document.querySelectorAll('canvas[data-mid="' + mid + '"][data-cover]');
+    for (let i = 0; i < list.length; i++) {
+      const cnv = list[i];
+      const sp = parseInt(cnv.dataset.sprite || '0', 10);
+      if (cnv.dataset.cover === '1') {
+        drawCoverPlateToCanvas(cnv, sp, mid);
+      } else {
+        drawSpriteToCanvas(cnv, sp, mid);
+      }
+    }
+  }
 
   function loadMuseumAtlas(museumId, makeActive) {
     const m = MUSEUMS[museumId] || MUSEUMS.bm;
@@ -462,13 +477,12 @@
       if (makeActive) activeAtlas = atlasCache[m.id];
       return Promise.resolve(atlasCache[m.id]);
     }
-
-    const sCanvas = document.createElement('canvas');
-    sCanvas.width = m.atlasCols * m.tileSize;
-    sCanvas.height = m.atlasRows * m.tileSize;
-    const aCtx = sCanvas.getContext('2d');
-    aCtx.fillStyle = '#241f1a';
-    aCtx.fillRect(0, 0, sCanvas.width, sCanvas.height);
+    if (atlasPromises[m.id]) {
+      return atlasPromises[m.id].then((ent) => {
+        if (makeActive) activeAtlas = ent;
+        return ent;
+      });
+    }
 
     const gCanvas = document.createElement('canvas');
     gCanvas.width = m.atlasCols * GLOBE_MIP_SIZE;
@@ -482,16 +496,15 @@
       cols: m.atlasCols,
       rows: m.atlasRows,
       tileSize: m.tileSize,
-      spriteAtlas: sCanvas,
+      spriteAtlas: null,
       globeSpriteAtlas: gCanvas
     };
 
-    return new Promise((resolve) => {
+    atlasPromises[m.id] = new Promise((resolve) => {
       const img = new Image();
+      img.decoding = 'async';
       img.onload = () => {
-        aCtx.imageSmoothingEnabled = true;
-        aCtx.imageSmoothingQuality = 'high';
-        aCtx.drawImage(img, 0, 0, sCanvas.width, sCanvas.height);
+        entry.spriteAtlas = img;
 
         gCtx.imageSmoothingEnabled = true;
         gCtx.imageSmoothingQuality = 'high';
@@ -504,16 +517,20 @@
           gCtx.strokeRect(gx + 0.7, gy + 0.7, GLOBE_MIP_SIZE - 1.4, GLOBE_MIP_SIZE - 1.4);
         }
         atlasCache[m.id] = entry;
-        if (makeActive) activeAtlas = entry;
+        loadedAtlasCount++;
+        if (makeActive || state.museumId === m.id) activeAtlas = entry;
+        repaintDeferredCanvases(m.id);
         resolve(entry);
       };
       img.onerror = () => {
         atlasCache[m.id] = entry;
+        loadedAtlasCount++;
         if (makeActive) activeAtlas = entry;
         resolve(entry);
       };
       img.src = m.atlasUri;
     });
+    return atlasPromises[m.id];
   }
 
   function ensureMuseumAtlas(museumId) {
@@ -2498,8 +2515,18 @@
   }
 
   function drawSpriteToCanvas(targetCanvas, spriteIdx, explicitMuseumId) {
-    const atl = (explicitMuseumId && atlasCache[explicitMuseumId]) ? atlasCache[explicitMuseumId] : activeAtlas;
-    if (!atl) return;
+    const mid = explicitMuseumId || state.museumId;
+    targetCanvas.dataset.mid = mid;
+    targetCanvas.dataset.sprite = String(spriteIdx);
+    targetCanvas.dataset.cover = '0';
+    const atl = atlasCache[mid] || (!explicitMuseumId ? activeAtlas : null);
+    if (!atl || !atl.spriteAtlas) {
+      loadMuseumAtlas(mid, mid === state.museumId);
+      const c = targetCanvas.getContext('2d');
+      c.fillStyle = '#241f1a';
+      c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+      return;
+    }
     const c = targetCanvas.getContext('2d');
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = 'high';
@@ -2511,8 +2538,18 @@
   }
 
   function drawCoverPlateToCanvas(targetCanvas, spriteIdx, explicitMuseumId) {
-    const atl = (explicitMuseumId && atlasCache[explicitMuseumId]) ? atlasCache[explicitMuseumId] : activeAtlas;
-    if (!atl) return;
+    const mid = explicitMuseumId || state.museumId;
+    targetCanvas.dataset.mid = mid;
+    targetCanvas.dataset.sprite = String(spriteIdx);
+    targetCanvas.dataset.cover = '1';
+    const atl = atlasCache[mid] || (!explicitMuseumId ? activeAtlas : null);
+    if (!atl || !atl.spriteAtlas) {
+      loadMuseumAtlas(mid, false);
+      const c = targetCanvas.getContext('2d');
+      c.fillStyle = '#241f1a';
+      c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+      return;
+    }
     const c = targetCanvas.getContext('2d');
     c.imageSmoothingEnabled = true;
     c.imageSmoothingQuality = 'high';
@@ -3443,8 +3480,22 @@
   }
 
   let lastFrameTime = performance.now();
+  let mainGlobeInViewport = true;
+  let mainRafPending = false;
+  let mainLastSig = '';
+
+  function ensureMainRaf() {
+    if (!mainRafPending && mainGlobeInViewport && !document.hidden) {
+      mainRafPending = true;
+      lastFrameTime = performance.now();
+      requestAnimationFrame(renderFrame);
+    }
+  }
 
   function renderFrame(now) {
+    mainRafPending = false;
+    if (!mainGlobeInViewport || document.hidden) return;
+
     const ts = typeof now === 'number' ? now : performance.now();
     const dt = Math.min(0.12, Math.max(0.001, (ts - lastFrameTime) / 1000));
     lastFrameTime = ts;
@@ -3520,11 +3571,36 @@
       }
     }
 
+    const sidebarOpen = vpW > 920 && elSidebar && !elSidebar.classList.contains('collapsed');
+    const isMoving = (state.autoRotate && !state.isDragging) || state.isDragging || state.animatingFlight || state.timelinePlaying ||
+      Math.abs(state.targetRotLon - state.rotLon) > 1e-4 ||
+      Math.abs(state.targetRotLat - state.rotLat) > 1e-4 ||
+      Math.abs(state.targetZoom - state.zoom) > 1e-4;
+
+    const sig = [
+      state.rotLon.toFixed(5), state.rotLat.toFixed(5), state.zoom.toFixed(4),
+      state.displayMode, state.cardScale, state.showLabels, state.showOrigins,
+      state.ringMode, state.showAurora, state.highlightCurated,
+      state.globeLens, state.museumId, state.homelandCountryEn, state.homelandFilterMuseumId || '',
+      state.selectedCountry ? state.selectedCountry.en : '',
+      state.hoveredArtifact ? state.hoveredArtifact.id : -1,
+      state.selectedArtifact ? state.selectedArtifact.id : -1,
+      state.hoveredMuseumPin ? state.hoveredMuseumPin.museumId : '',
+      state.searchQuery, state.isCollectedInHost, state.flightProgress.toFixed(4),
+      state.timelineActive, state.timelineVisible, state.timelineYear.toFixed(2),
+      vpW, vpH, sidebarOpen, loadedAtlasCount
+    ].join('|');
+
+    if (!isMoving && sig === mainLastSig) {
+      ensureMainRaf();
+      return;
+    }
+    mainLastSig = sig;
+
     ctx.save();
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, vpW, vpH);
 
-    const sidebarOpen = vpW > 920 && elSidebar && !elSidebar.classList.contains('collapsed');
     const cx = sidebarOpen ? (vpW * 0.50 + 147) : (vpW * 0.50);
     const cy = state.timelineVisible ? (vpH * 0.44) : (vpH * 0.48);
     const availW = sidebarOpen ? Math.max(320, vpW - 294) : vpW;
@@ -3792,9 +3868,13 @@
         const drawY = c.sy - cardH;
 
         ctx.fillStyle = 'rgba(48, 34, 16, 0.22)';
-        ctx.beginPath();
-        ctx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
-        ctx.fill();
+        if (cardW < 15) {
+          ctx.fillRect(drawX + 1, c.sy - 1, Math.max(2, cardW - 2), 2);
+        } else {
+          ctx.beginPath();
+          ctx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.drawImage(gAtlas, sxAtlas, syAtlas, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, drawX, drawY, cardW, cardH);
 
@@ -3958,7 +4038,7 @@
     }
 
     ctx.restore();
-    requestAnimationFrame(renderFrame);
+    ensureMainRaf();
   }
 
   function drawAstrolabeRings(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, frontPass, ringLabelState) {
@@ -4692,11 +4772,26 @@
     resizeCanvas();
     applyStaticAndMuseumTranslations();
 
+    // Start loading active museum's .webp atlas immediately without blocking UI boot
+    ensureMuseumAtlas(state.museumId).then(() => {
+      let pfIdx = 0;
+      const prefetchStep = () => {
+        if (pfIdx >= SUPPORTED_MUSEUMS.length) return;
+        const mid = SUPPORTED_MUSEUMS[pfIdx++];
+        loadMuseumAtlas(mid, false);
+        setTimeout(() => {
+          if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(prefetchStep, { timeout: 1500 });
+          } else {
+            prefetchStep();
+          }
+        }, 220);
+      };
+      setTimeout(prefetchStep, 260);
+    });
+
     try {
-      const [, { polyMap, borderArcs3D, landDots }] = await Promise.all([
-        ensureMuseumAtlas(state.museumId),
-        decodeWorldMap()
-      ]);
+      const { polyMap, borderArcs3D, landDots } = await decodeWorldMap();
       state.polyMap = polyMap;
       state.borderArcs3D = borderArcs3D;
       state.landDots3D = landDots;
@@ -4753,7 +4848,24 @@
       }
     }
 
-    requestAnimationFrame(renderFrame);
+    if (typeof IntersectionObserver === 'function' && elGlobeSection) {
+      const gObs = new IntersectionObserver((entries) => {
+        mainGlobeInViewport = Boolean(entries[0] && entries[0].isIntersecting);
+        if (mainGlobeInViewport) {
+          mainLastSig = '';
+          ensureMainRaf();
+        }
+      }, { threshold: 0.01 });
+      gObs.observe(elGlobeSection);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        mainLastSig = '';
+        ensureMainRaf();
+      }
+    });
+
+    ensureMainRaf();
   }
 
   const elDockEl = document.getElementById('bottom-dock');

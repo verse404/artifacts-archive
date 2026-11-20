@@ -24,3 +24,6 @@ services:
       - path: /js/assets.js
         name: Cache-Control
         value: "public, max-age=86400"
+      - path: /img/atlases/*
+        name: Cache-Control
+        value: "public, max-age=31536000, immutable"

@@ -205,7 +205,12 @@ class HardenedExhibitionHandler(BaseHTTPRequestHandler):
             content_type = guessed
 
         data = candidate.read_bytes()
-        cache_hdr = "no-store" if ext == ".html" else "public, max-age=300"
+        if ext == ".html":
+            cache_hdr = "no-store"
+        elif ext == ".webp" and "/img/atlases/" in raw_path:
+            cache_hdr = "public, max-age=31536000, immutable"
+        else:
+            cache_hdr = "public, max-age=300"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))

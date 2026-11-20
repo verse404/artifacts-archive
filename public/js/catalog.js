@@ -666,29 +666,21 @@
       return atlasCache[m.id].promise;
     }
 
-    const sCanvas = document.createElement('canvas');
-    sCanvas.width = m.atlasCols * m.tileSize;
-    sCanvas.height = m.atlasRows * m.tileSize;
-    const aCtx = sCanvas.getContext('2d');
-    aCtx.fillStyle = '#231e19';
-    aCtx.fillRect(0, 0, sCanvas.width, sCanvas.height);
-
     const entry = {
       id: m.id,
       cols: m.atlasCols,
       rows: m.atlasRows,
       tileSize: m.tileSize,
-      spriteAtlas: sCanvas,
+      spriteAtlas: null,
       loaded: false,
       promise: null
     };
 
     entry.promise = new Promise((resolve) => {
       const img = new Image();
+      img.decoding = 'async';
       img.onload = () => {
-        aCtx.imageSmoothingEnabled = true;
-        aCtx.imageSmoothingQuality = 'high';
-        aCtx.drawImage(img, 0, 0, sCanvas.width, sCanvas.height);
+        entry.spriteAtlas = img;
         entry.loaded = true;
         repaintVisiblePlatesForMuseum(m.id);
         resolve(entry);
@@ -709,7 +701,7 @@
     canvas.dataset.museumId = museumId;
     canvas.dataset.sprite = String(spriteIdx);
     const entry = atlasCache[museumId];
-    if (!entry || !entry.loaded) {
+    if (!entry || !entry.loaded || !entry.spriteAtlas) {
       loadMuseumAtlas(museumId);
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#251f19';
@@ -2083,10 +2075,23 @@
   applyFilterAndSort();
   renderCrossTabMatrix();
 
-  // Preload all 10 museum atlases asynchronously in background
-  for (let i = 0; i < SUPPORTED_MUSEUMS.length; i++) {
-    loadMuseumAtlas(SUPPORTED_MUSEUMS[i]);
-  }
+  // Staggered idle prefetch of remaining museum atlases so initial rows render first
+  (function scheduleIdleAtlasPrefetch() {
+    let idx = 0;
+    const step = () => {
+      if (idx >= SUPPORTED_MUSEUMS.length) return;
+      const mid = SUPPORTED_MUSEUMS[idx++];
+      loadMuseumAtlas(mid);
+      setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(step, { timeout: 1200 });
+        } else {
+          step();
+        }
+      }, 220);
+    };
+    setTimeout(step, 350);
+  })();
 
   if (initialRecordNum) {
     openRecordSheet(state.allRecords[initialRecordNum - 1]);

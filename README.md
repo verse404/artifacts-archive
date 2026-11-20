@@ -22,13 +22,15 @@ artifacts-archive/
     ├── creation-age.html  # Page 3: Creation Age Chronicle (6000 BC – AD 2023)
     ├── catalog.html       # Page 4: Complete 45,008-Artifact Master Catalogue & 101×10 Matrix
     ├── favicon.svg        # Custom archival astrolabe vector icon
+    ├── img/
+    │   └── atlases/           # 10 immutable-cached Ultra-HD WebP museum atlases (loaded lazily on demand)
     ├── css/
     │   ├── styles.css         # Warm vellum design tokens & shared editorial layout
     │   ├── stories.css        # Two-column Curator Stories scrollytelling styles
     │   ├── creation-age.css   # Creation Age Chronicle styles
     │   └── catalog.css        # Full 45,008-Artifact Master Catalogue styles
     └── js/
-        ├── assets.js          # Natural Earth 110m borders + 10 museum atlases (332 Ultra-HD plates, 45,008 items)
+        ├── assets.js          # Compact metadata (~115 KB gzipped): Natural Earth 110m borders + 45,008 specs
         ├── app.js             # 60 FPS 3D globe engine, By Museum / By Homeland lens & acquisition timeline
         ├── stories.js         # Scrollytelling 3D story globe, great-circle routes & virtual reunion tours
         ├── creation-age.js    # Strict historical creation-age filter, histogram & 3D civilizations globe

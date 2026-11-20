@@ -386,8 +386,8 @@ html[lang="zh-CN"] #ca-main-title {
   padding: 8px 20px;
   border-radius: 14px;
   background: rgba(252, 248, 240, 0.86);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(176, 150, 113, 0.34);
   pointer-events: none;
 }
@@ -415,8 +415,8 @@ html[lang="zh-CN"] #ca-main-title {
   width: 280px;
   z-index: 24;
   background: rgba(251, 246, 236, 0.92);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(176, 150, 113, 0.42);
   border-radius: 16px;
   display: flex;
@@ -535,8 +535,8 @@ html[lang="zh-CN"] #ca-main-title {
   width: min(720px, calc(100% - 36px));
   z-index: 30;
   background: var(--bg-paper-strong);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(176, 150, 113, 0.45);
   border-radius: 16px;
   padding: 14px;
@@ -619,8 +619,8 @@ html[lang="zh-CN"] #ca-main-title {
   transform: translateX(-50%);
   z-index: 25;
   background: rgba(252, 248, 239, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--border-sepia);
   border-radius: 16px;
   padding: 8px 16px;

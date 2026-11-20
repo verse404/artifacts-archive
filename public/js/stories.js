@@ -652,13 +652,6 @@
     if (atlasCache[m.id] && atlasCache[m.id].loaded) return Promise.resolve(atlasCache[m.id]);
     if (atlasCache[m.id] && atlasCache[m.id].promise) return atlasCache[m.id].promise;
 
-    const sCanvas = document.createElement('canvas');
-    sCanvas.width = m.atlasCols * m.tileSize;
-    sCanvas.height = m.atlasRows * m.tileSize;
-    const aCtx = sCanvas.getContext('2d');
-    aCtx.fillStyle = '#231e19';
-    aCtx.fillRect(0, 0, sCanvas.width, sCanvas.height);
-
     const gCanvas = document.createElement('canvas');
     gCanvas.width = m.atlasCols * GLOBE_MIP_SIZE;
     gCanvas.height = m.atlasRows * GLOBE_MIP_SIZE;
@@ -671,7 +664,7 @@
       cols: m.atlasCols,
       rows: m.atlasRows,
       tileSize: m.tileSize,
-      spriteAtlas: sCanvas,
+      spriteAtlas: null,
       globeSpriteAtlas: gCanvas,
       loaded: false,
       promise: null
@@ -679,10 +672,9 @@
 
     entry.promise = new Promise((resolve) => {
       const img = new Image();
+      img.decoding = 'async';
       img.onload = () => {
-        aCtx.imageSmoothingEnabled = true;
-        aCtx.imageSmoothingQuality = 'high';
-        aCtx.drawImage(img, 0, 0, sCanvas.width, sCanvas.height);
+        entry.spriteAtlas = img;
         gCtx.imageSmoothingEnabled = true;
         gCtx.imageSmoothingQuality = 'high';
         gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
@@ -706,7 +698,7 @@
     cnv.dataset.museumId = museumId;
     cnv.dataset.sprite = String(spriteIdx);
     const entry = atlasCache[museumId];
-    if (!entry || !entry.loaded) {
+    if (!entry || !entry.loaded || !entry.spriteAtlas) {
       loadMuseumAtlas(museumId);
       const ctx = cnv.getContext('2d');
       ctx.fillStyle = '#241f19';
@@ -1140,9 +1132,20 @@
     elLightbox.classList.add('open');
   }
 
-  // 60 FPS 3D Story Globe Renderer
+  // 60 FPS 3D Story Globe Renderer (pauses automatically when scrolled off-screen or tab hidden)
   let lastFrameTs = performance.now();
+  let globeInViewport = true;
+  let rafPending = false;
+  function ensureStoryRaf() {
+    if (!rafPending && globeInViewport && !document.hidden) {
+      rafPending = true;
+      lastFrameTs = performance.now();
+      requestAnimationFrame(renderGlobeFrame);
+    }
+  }
   function renderGlobeFrame(now) {
+    rafPending = false;
+    if (!globeInViewport || document.hidden) return;
     const rawElapsed = Math.max(0.001, (now - lastFrameTs) / 1000);
     const dt = Math.min(0.05, rawElapsed);
     const camDt = Math.min(0.42, rawElapsed);
@@ -1435,7 +1438,12 @@
     }
 
     gCtx.restore();
-    requestAnimationFrame(renderGlobeFrame);
+    if (globeInViewport && !document.hidden) {
+      rafPending = true;
+      requestAnimationFrame(renderGlobeFrame);
+    } else {
+      rafPending = false;
+    }
   }
 
   function applyTranslations() {
@@ -1658,7 +1666,34 @@
       state.polyMap = new Map();
     }
 
-    requestAnimationFrame(renderGlobeFrame);
+    if (typeof IntersectionObserver === 'function') {
+      const stageObs = new IntersectionObserver((entries) => {
+        globeInViewport = Boolean(entries[0] && entries[0].isIntersecting);
+        if (globeInViewport) ensureStoryRaf();
+      }, { threshold: 0.01 });
+      stageObs.observe(elGlobeStage);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) ensureStoryRaf();
+    });
+
+    ensureStoryRaf();
+
+    // Quietly prefetch remaining museum atlases during idle time
+    let pfIdx = 0;
+    const allMids = Object.keys(MUSEUMS);
+    const prefetchNext = () => {
+      if (pfIdx >= allMids.length) return;
+      loadMuseumAtlas(allMids[pfIdx++]);
+      setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(prefetchNext, { timeout: 1500 });
+        } else {
+          prefetchNext();
+        }
+      }, 260);
+    };
+    setTimeout(prefetchNext, 600);
   }
 
   boot();

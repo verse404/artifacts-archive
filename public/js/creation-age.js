@@ -480,16 +480,13 @@
     return { polyMap, borderArcs3D, landDots };
   }
 
+  const atlasPromises = {};
+  let loadedAtlasCount = 0;
+
   function loadMuseumAtlas(museumId) {
     const m = MUSEUMS[museumId] || MUSEUMS.bm;
     if (atlasCache[m.id]) return Promise.resolve(atlasCache[m.id]);
-
-    const sCanvas = document.createElement('canvas');
-    sCanvas.width = m.atlasCols * m.tileSize;
-    sCanvas.height = m.atlasRows * m.tileSize;
-    const aCtx = sCanvas.getContext('2d');
-    aCtx.fillStyle = '#241f1a';
-    aCtx.fillRect(0, 0, sCanvas.width, sCanvas.height);
+    if (atlasPromises[m.id]) return atlasPromises[m.id];
 
     const gCanvas = document.createElement('canvas');
     gCanvas.width = m.atlasCols * GLOBE_MIP_SIZE;
@@ -503,16 +500,15 @@
       cols: m.atlasCols,
       rows: m.atlasRows,
       tileSize: m.tileSize,
-      spriteAtlas: sCanvas,
+      spriteAtlas: null,
       globeSpriteAtlas: gCanvas
     };
 
-    return new Promise((resolve) => {
+    atlasPromises[m.id] = new Promise((resolve) => {
       const img = new Image();
+      img.decoding = 'async';
       img.onload = () => {
-        aCtx.imageSmoothingEnabled = true;
-        aCtx.imageSmoothingQuality = 'high';
-        aCtx.drawImage(img, 0, 0, sCanvas.width, sCanvas.height);
+        entry.spriteAtlas = img;
         gCtx.imageSmoothingEnabled = true;
         gCtx.imageSmoothingQuality = 'high';
         gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
@@ -524,14 +520,17 @@
           gCtx.strokeRect(gx + 0.7, gy + 0.7, GLOBE_MIP_SIZE - 1.4, GLOBE_MIP_SIZE - 1.4);
         }
         atlasCache[m.id] = entry;
+        loadedAtlasCount++;
         resolve(entry);
       };
       img.onerror = () => {
         atlasCache[m.id] = entry;
+        loadedAtlasCount++;
         resolve(entry);
       };
       img.src = m.atlasUri;
     });
+    return atlasPromises[m.id];
   }
 
   function buildArtifactObjUrl(art) {
@@ -576,7 +575,7 @@
       const fallbackLon = meta.lon;
       const fallbackLat = meta.lat;
       const rings = polyMap.get(enName) || [];
-      const capPts = Math.min(totalCnt, 900);
+      const capPts = Math.min(totalCnt, 420);
 
       let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
       for (let r = 0; r < rings.length; r++) {
@@ -913,7 +912,7 @@
 
   function drawSpriteTile(cnv, spriteIdx, mid, cropCover) {
     const drawNow = (atl) => {
-      if (!atl) return;
+      if (!atl || !atl.spriteAtlas) return;
       const c = cnv.getContext('2d');
       c.imageSmoothingEnabled = true;
       c.imageSmoothingQuality = 'high';
@@ -1597,8 +1596,22 @@
   }
 
   let lastTs = performance.now();
+  let caGlobeInViewport = true;
+  let caRafPending = false;
+  let caLastSig = '';
+
+  function ensureCaRaf() {
+    if (!caRafPending && caGlobeInViewport && !document.hidden) {
+      caRafPending = true;
+      lastTs = performance.now();
+      requestAnimationFrame(renderGlobeFrame);
+    }
+  }
 
   function renderGlobeFrame(now) {
+    caRafPending = false;
+    if (!caGlobeInViewport || document.hidden) return;
+
     const ts = typeof now === 'number' ? now : performance.now();
     const dt = Math.min(0.12, Math.max(0.001, (ts - lastTs) / 1000));
     lastTs = ts;
@@ -1627,11 +1640,32 @@
     state.rotLat += (state.targetRotLat - state.rotLat) * alpha;
     state.zoom += (state.targetZoom - state.zoom) * alpha;
 
+    const sidebarOpen = vpW > 820 && elSidebar && !elSidebar.classList.contains('collapsed');
+    const isMoving = (state.autoRotate && !state.isDragging) || state.isDragging || state.walkingEras ||
+      Math.abs(state.targetRotLon - state.rotLon) > 1e-4 ||
+      Math.abs(state.targetRotLat - state.rotLat) > 1e-4 ||
+      Math.abs(state.targetZoom - state.zoom) > 1e-4;
+
+    const sig = [
+      state.rotLon.toFixed(5), state.rotLat.toFixed(5), state.zoom.toFixed(4),
+      state.displayMode, state.cardScale, state.showLabels, state.showAurora,
+      state.startIdx, state.endIdx, state.museumScope, state.selectedCountryEn || '',
+      state.detailMuseumFilter || '', state.searchQuery,
+      state.hoveredArtifact ? state.hoveredArtifact.globalId : -1,
+      state.selectedArtifact ? state.selectedArtifact.globalId : -1,
+      vpW, vpH, sidebarOpen, loadedAtlasCount
+    ].join('|');
+
+    if (!isMoving && sig === caLastSig) {
+      ensureCaRaf();
+      return;
+    }
+    caLastSig = sig;
+
     gCtx.save();
     gCtx.scale(dpr, dpr);
     gCtx.clearRect(0, 0, vpW, vpH);
 
-    const sidebarOpen = vpW > 820 && elSidebar && !elSidebar.classList.contains('collapsed');
     const cx = sidebarOpen ? (vpW * 0.50 + 147) : (vpW * 0.50);
     const cy = vpH * 0.50;
     const availW = sidebarOpen ? Math.max(320, vpW - 294) : vpW;
@@ -1712,7 +1746,8 @@
     // Adaptive stride keeps 60 FPS even when all 45,008 items are active; curated plates ALWAYS render
     visibleCards.length = 0;
     const src = state.filteredArtifacts;
-    const stride = src.length > 6200 ? Math.ceil(src.length / 5800) : 1;
+    const budget = state.isDragging ? 3400 : 5600;
+    const stride = src.length > budget ? Math.ceil(src.length / budget) : 1;
     const baseCardPx = Math.max(5.5, Math.min(26, baseR * 0.037 * state.cardScale));
 
     for (let i = 0; i < src.length; i++) {
@@ -1783,9 +1818,13 @@
         const dx = c.sx - cardW * 0.5;
         const dy = c.sy - cardH;
         gCtx.fillStyle = 'rgba(48, 34, 16, 0.22)';
-        gCtx.beginPath();
-        gCtx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
-        gCtx.fill();
+        if (cardW < 15) {
+          gCtx.fillRect(dx + 1, c.sy - 1, Math.max(2, cardW - 2), 2);
+        } else {
+          gCtx.beginPath();
+          gCtx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
+          gCtx.fill();
+        }
         gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, dx, dy, cardW, cardH);
         if (isHi || art.isCurated) {
           gCtx.strokeStyle = isHi ? '#ffe08c' : 'rgba(232, 188, 98, 0.75)';
@@ -1843,7 +1882,7 @@
     }
 
     gCtx.restore();
-    requestAnimationFrame(renderGlobeFrame);
+    ensureCaRaf();
   }
 
   function updateHover(clientX, clientY) {
@@ -2165,8 +2204,23 @@
     }
 
     buildGlobalChronologyDataset();
-    // Preload all 10 atlases concurrently (embedded base64 WebP decodes in ~45ms)
-    await Promise.all(SUPPORTED_MUSEUMS.map(mid => loadMuseumAtlas(mid)));
+    // Load active museum immediately without blocking initial page render, then stagger remaining atlases
+    const firstMid = state.museumScope !== 'all' ? state.museumScope : 'bm';
+    loadMuseumAtlas(firstMid);
+    let pfIdx = 0;
+    const prefetchStep = () => {
+      if (pfIdx >= SUPPORTED_MUSEUMS.length) return;
+      const mid = SUPPORTED_MUSEUMS[pfIdx++];
+      loadMuseumAtlas(mid);
+      setTimeout(() => {
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(prefetchStep, { timeout: 1200 });
+        } else {
+          prefetchStep();
+        }
+      }, 150);
+    };
+    setTimeout(prefetchStep, 180);
 
     const validEra = ERAS.find(e => e.id === initEra) ? initEra : 'all';
     selectEraPreset(validEra, true);
@@ -2184,7 +2238,24 @@
       }
     }
 
-    requestAnimationFrame(renderGlobeFrame);
+    if (typeof IntersectionObserver === 'function' && elGlobeSection) {
+      const gObs = new IntersectionObserver((entries) => {
+        caGlobeInViewport = Boolean(entries[0] && entries[0].isIntersecting);
+        if (caGlobeInViewport) {
+          caLastSig = '';
+          ensureCaRaf();
+        }
+      }, { threshold: 0.01 });
+      gObs.observe(elGlobeSection);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        caLastSig = '';
+        ensureCaRaf();
+      }
+    });
+
+    ensureCaRaf();
   }
 
   const elCaDock = document.getElementById('ca-bottom-dock');
