@@ -802,17 +802,42 @@
 }
 
 #site-nav .nav-inner {
-  max-width: 1580px;
-  flex-wrap: wrap;
+  max-width: 1720px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
   row-gap: 5px;
   padding: 8px 18px 6px;
+}
+
+#site-nav .brand-link {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.idx-page-switcher,
+.st-page-switcher,
+.ca-page-switcher,
+.cat-page-switcher {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+}
+
+#site-nav .nav-right {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .idx-sec-links,
 .ca-sec-links,
 .cat-sec-links {
-  order: 4;
-  flex-basis: 100%;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
   width: 100%;
   min-width: 0;
   display: flex;
@@ -838,17 +863,72 @@
   font-size: 11.8px;
 }
 
-@media (max-width: 1280px) {
-  .st-kbd-chip,
+@media (max-width: 1640px) {
   .nav-cta-btn {
     display: none;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 1360px) {
+  .st-kbd-chip {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  #site-nav .nav-inner {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  #site-nav .nav-right {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .idx-page-switcher,
+  .st-page-switcher,
+  .ca-page-switcher,
+  .cat-page-switcher {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    width: fit-content;
+    max-width: 100%;
+    margin: 2px auto 0;
+  }
   .idx-sec-links,
   .ca-sec-links,
   .cat-sec-links {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 560px) {
+  #site-nav .nav-inner {
+    grid-template-columns: 1fr;
+  }
+  #site-nav .brand-link {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  #site-nav .nav-right {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: stretch;
+    justify-content: flex-start;
+  }
+  .idx-page-switcher,
+  .st-page-switcher,
+  .ca-page-switcher,
+  .cat-page-switcher {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .idx-sec-links,
+  .ca-sec-links,
+  .cat-sec-links {
+    grid-column: 1;
+    grid-row: 4;
     justify-content: flex-start;
     gap: 14px;
   }
