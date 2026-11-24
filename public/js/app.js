@@ -155,7 +155,12 @@
       galleryCatalogCta: 'All 45,008 in Full Catalog ↗',
       tlAcqLabel: 'Acquisition',
       tlCreationLink: 'Creation Age ↗',
-      tlLandedChip: 'Landed ✓'
+      tlLandedChip: 'Landed ✓',
+      distLedgerTitle: 'Global Displacement Odometer & Farthest Masterworks',
+      distLedgerSub: 'Exact great-circle Haversine distance from archaeological homeland to holding museum. Click any masterpiece to fly there on the 3D globe.',
+      distKpiGlobalLbl: '10-Museum Overseas Distance',
+      distKpiActiveLbl: 'Active Museum Avg.',
+      distKpiMaxLbl: 'Farthest Masterwork'
     },
     zh: {
       locale: 'zh-CN',
@@ -285,7 +290,12 @@
       galleryCatalogCta: '在 45,008 件总名录中检索 ↗',
       tlAcqLabel: '入藏航迹',
       tlCreationLink: '文明纪年 ↗',
-      tlLandedChip: '全部落馆 ✓'
+      tlLandedChip: '全部落馆 ✓',
+      distLedgerTitle: '全球文物流散总航程与距乡最远国宝榜',
+      distLedgerSub: '按地球大圆（Haversine）公式精确测算每件文物从原属国到现藏博物馆的球面距离；点击任意国宝即可在 3D 地球仪定位。',
+      distKpiGlobalLbl: '十大博物馆海外流散总里程',
+      distKpiActiveLbl: '当前博物馆海外平均距乡',
+      distKpiMaxLbl: '距故乡最远单件国宝'
     }
   };
 
@@ -3375,6 +3385,165 @@
     }
 
     elTopOriginsBars.appendChild(frag);
+    renderDistanceLeaderboard();
+  }
+
+  let cachedGlobalDistStats = null;
+
+  function haversineKmApp(lon1, lat1, lon2, lat2) {
+    const p1 = lat1 * DEG2RAD;
+    const p2 = lat2 * DEG2RAD;
+    const dp = (lat2 - lat1) * DEG2RAD;
+    const dl = (lon2 - lon1) * DEG2RAD;
+    const a = Math.sin(dp * 0.5) * Math.sin(dp * 0.5) +
+      Math.cos(p1) * Math.cos(p2) * Math.sin(dl * 0.5) * Math.sin(dl * 0.5);
+    return 2 * 6371 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+  }
+
+  function computeGlobalDistanceStats() {
+    if (cachedGlobalDistStats) return cachedGlobalDistStats;
+    let totalKm = 0;
+    const byMuseum = {};
+    const masterList = [];
+    for (let mIdx = 0; mIdx < SUPPORTED_MUSEUMS.length; mIdx++) {
+      const mid = SUPPORTED_MUSEUMS[mIdx];
+      const m = MUSEUMS[mid];
+      if (!m) continue;
+      let mKm = 0;
+      let mOverseas = 0;
+      const cCoord = {};
+      for (let r = 0; r < m.countriesSpec.length; r++) {
+        const [enName, zhName, count, , cLon, cLat] = m.countriesSpec[r];
+        cCoord[enName] = { zh: zhName, lon: cLon, lat: cLat };
+        if (enName === m.hostCountryEn) continue;
+        const dKm = haversineKmApp(cLon, cLat, m.hostLon, m.hostLat);
+        mKm += dKm * count;
+        mOverseas += count;
+      }
+      totalKm += mKm;
+      byMuseum[mid] = { totalKm: mKm, avgKm: mOverseas ? Math.round(mKm / mOverseas) : 0 };
+
+      const fMap = m.featuredByCountry || {};
+      const keys = Object.keys(fMap);
+      for (let k = 0; k < keys.length; k++) {
+        const cEn = keys[k];
+        if (cEn === m.hostCountryEn) continue;
+        const cc = cCoord[cEn];
+        if (!cc) continue;
+        const distKm = Math.round(haversineKmApp(cc.lon, cc.lat, m.hostLon, m.hostLat));
+        const list = fMap[cEn] || [];
+        for (let j = 0; j < list.length; j++) {
+          const f = list[j];
+          masterList.push({
+            museumId: mid,
+            countryEn: cEn,
+            countryZh: cc.zh,
+            en: f.en,
+            zh: f.zh,
+            sprite: f.sprite,
+            distKm
+          });
+        }
+      }
+    }
+    masterList.sort((a, b) => b.distKm - a.distKm);
+    // Deduplicate identical country+museum cluster for a diverse Top 10 showcase
+    const top10 = [];
+    const perCluster = {};
+    for (let i = 0; i < masterList.length && top10.length < 10; i++) {
+      const it = masterList[i];
+      const ck = it.museumId + '|' + it.countryEn;
+      perCluster[ck] = (perCluster[ck] || 0) + 1;
+      if (perCluster[ck] > 2) continue;
+      top10.push(it);
+    }
+    cachedGlobalDistStats = { totalKm, byMuseum, top10 };
+    return cachedGlobalDistStats;
+  }
+
+  function renderDistanceLeaderboard() {
+    const elList = document.getElementById('farthest-masterpieces-list');
+    const elGlob = document.getElementById('dist-kpi-global');
+    const elAct = document.getElementById('dist-kpi-active');
+    const elActLbl = document.getElementById('dist-kpi-active-lbl');
+    const elMax = document.getElementById('dist-kpi-max');
+    if (!elList) return;
+
+    const stats = computeGlobalDistanceStats();
+    if (elGlob) {
+      elGlob.textContent = state.lang === 'zh'
+        ? ((stats.totalKm / 1e8).toFixed(2) + ' 亿 km')
+        : ((stats.totalKm / 1e6).toFixed(1) + 'M km');
+    }
+    const curStats = stats.byMuseum[state.museumId] || { avgKm: 0 };
+    const mc = mCopy();
+    if (elAct) elAct.textContent = fmtNum(curStats.avgKm) + ' km';
+    if (elActLbl) {
+      elActLbl.textContent = state.lang === 'zh'
+        ? (mc.shortName + ' · 海外均距')
+        : (mc.shortName + ' · Overseas Avg.');
+    }
+    const maxKm = stats.top10.length ? stats.top10[0].distKm : 13620;
+    if (elMax) elMax.textContent = fmtNum(maxKm) + ' km';
+
+    elList.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < stats.top10.length; i++) {
+      const it = stats.top10[i];
+      const m = MUSEUMS[it.museumId];
+      const mC = (m && m.copy && m.copy[state.lang]) || (m && m.copy && m.copy.en) || { shortName: it.museumId };
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'farthest-row-btn';
+      btn.addEventListener('click', () => {
+        scrollGlobeIntoView();
+        switchMuseum(it.museumId).then(() => {
+          const matchedC = state.countries.find(c => c.en === it.countryEn);
+          if (matchedC) {
+            selectCountry(matchedC);
+            const art = matchedC.artifacts.find(a => a.isCurated && a.sprite === it.sprite) || matchedC.artifacts[0];
+            if (art) openArtifactModal(art, true, true);
+          }
+        });
+      });
+
+      const rank = document.createElement('span');
+      rank.className = 'farthest-rank';
+      rank.textContent = String(i + 1);
+
+      const main = document.createElement('span');
+      main.className = 'farthest-main';
+
+      const ttl = document.createElement('span');
+      ttl.className = 'farthest-title';
+      ttl.textContent = state.lang === 'zh' ? it.zh : it.en;
+
+      const rt = document.createElement('span');
+      rt.className = 'farthest-route';
+      const cLbl = state.lang === 'zh' ? it.countryZh : (it.countryEn === 'United States of America' ? 'United States' : it.countryEn);
+      rt.textContent = cLbl + '  →  ' + mC.shortName;
+
+      const bw = document.createElement('span');
+      bw.className = 'farthest-bar-wrap';
+      const bf = document.createElement('span');
+      bf.className = 'farthest-bar-fill';
+      bf.style.width = Math.max(12, Math.round((it.distKm / maxKm) * 100)) + '%';
+      bw.appendChild(bf);
+
+      main.appendChild(ttl);
+      main.appendChild(rt);
+      main.appendChild(bw);
+
+      const km = document.createElement('span');
+      km.className = 'farthest-km';
+      km.textContent = fmtNum(it.distKm) + ' km';
+
+      btn.appendChild(rank);
+      btn.appendChild(main);
+      btn.appendChild(km);
+      frag.appendChild(btn);
+    }
+    elList.appendChild(frag);
   }
 
   // 3D Globe Projection & Rendering Engine
@@ -4894,6 +5063,35 @@
     syncDockHeight();
     new ResizeObserver(syncDockHeight).observe(elDockEl);
   }
+
+  window.__ARTIFACTS_STUDIO_BRIDGE__ = {
+    page: 'index',
+    getLang: () => state.lang,
+    getActiveArtifact: () => {
+      const a = state.selectedArtifact || state.lightboxArtifact;
+      if (!a || !a.isCurated) return null;
+      return { museumId: a.museumId || state.museumId, sprite: a.sprite };
+    },
+    focusMuseum: (mid) => {
+      scrollGlobeIntoView();
+      switchMuseum(mid);
+    },
+    focusHomeland: (countryEn) => {
+      scrollGlobeIntoView();
+      focusHomeland(countryEn);
+    },
+    focusMasterpiece: (mid, countryEn, sprite) => {
+      scrollGlobeIntoView();
+      switchMuseum(mid).then(() => {
+        const matchedC = state.countries.find(c => c.en === countryEn);
+        if (matchedC) {
+          selectCountry(matchedC);
+          const art = matchedC.artifacts.find(a => a.isCurated && a.sprite === sprite) || matchedC.artifacts[0];
+          if (art) openArtifactModal(art, true, true);
+        }
+      });
+    }
+  };
 
   applyInitialBoot();
 })();

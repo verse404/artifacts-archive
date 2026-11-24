@@ -178,6 +178,7 @@ html[lang="zh-CN"] .st-tab-title {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .st-prologue-card {
@@ -221,7 +222,7 @@ html[lang="zh-CN"] #st-story-heading {
 
 .st-story-kpis {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 16px;
 }
@@ -662,7 +663,7 @@ html[lang="zh-CN"] #st-lb-title {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .st-scrolly-section {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 4px 14px 36px;
   }
   .st-globe-col {
@@ -672,6 +673,7 @@ html[lang="zh-CN"] #st-lb-title {
     z-index: 30;
     height: 330px;
     min-height: 290px;
+    min-width: 0;
   }
   .st-chapters-list {
     padding-bottom: 24px;

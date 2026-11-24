@@ -1,0 +1,818 @@
+/* ==========================================================================
+   Artifacts Archive — Unified Curator Studio & Global Command Palette
+   Features: ⌘K Global Search · 3D Origin Challenge · Side-by-Side Compare
+             My Exhibition Bookmarks & Shareable Links · Archival Postcard PNG
+   Zero inline styles; strict CSP compatible; warm sunlit-vellum palette
+   ========================================================================== */
+
+/* Compact Navbar Utility Buttons (Injected cleanly into #site-nav .nav-right) */
+.st-nav-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.st-nav-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(248, 240, 224, 0.90);
+  color: var(--ink-strong);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.14s ease;
+}
+
+.st-nav-tool-btn:hover {
+  background: #f0dfbe;
+  border-color: var(--accent-brass);
+  transform: translateY(-1px);
+}
+
+.st-nav-tool-btn.is-gold {
+  background: linear-gradient(135deg, rgba(244, 230, 200, 0.96), rgba(229, 205, 160, 0.90));
+  border-color: rgba(162, 118, 46, 0.52);
+  color: #5a3a10;
+}
+
+.st-nav-tool-btn.is-gold:hover {
+  background: linear-gradient(135deg, #8c6223, #6d4a14);
+  color: #fffaf0;
+  border-color: #6d4a14;
+}
+
+.st-kbd-chip {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 9.8px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(92, 66, 30, 0.12);
+  color: var(--ink-body);
+}
+
+.st-count-pill {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #8c6223;
+  color: #fffaf0;
+  min-width: 17px;
+  text-align: center;
+}
+
+/* Shared Overlay Backdrop */
+.studio-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  background: rgba(24, 17, 10, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.studio-backdrop.open {
+  display: flex;
+}
+
+/* ==========================================================================
+   1. Global ⌘K Command Palette
+   ========================================================================== */
+.cmdk-dialog {
+  width: min(680px, 100%);
+  max-height: min(78vh, 640px);
+  background: #fbf7ee;
+  border: 1.5px solid var(--border-sepia-strong);
+  border-radius: 18px;
+  box-shadow: 0 28px 64px rgba(24, 16, 8, 0.36);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cmdk-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-sepia);
+  background: #fffcf5;
+}
+
+.cmdk-search-icon {
+  font-size: 16px;
+  color: var(--accent-brass-deep);
+  flex-shrink: 0;
+}
+
+#cmdk-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink-strong);
+  outline: none;
+}
+
+.cmdk-esc-btn {
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(235, 223, 202, 0.72);
+  color: var(--ink-body);
+  border-radius: 7px;
+  padding: 3px 8px;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.cmdk-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+}
+
+.cmdk-group-lbl {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #654412;
+  padding: 10px 8px 4px;
+}
+
+.cmdk-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-strong);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.cmdk-item:hover,
+.cmdk-item.active {
+  background: rgba(232, 214, 178, 0.56);
+  border-color: rgba(176, 134, 68, 0.42);
+}
+
+.cmdk-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  background: #231d17;
+  border: 1px solid rgba(150, 122, 82, 0.4);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  overflow: hidden;
+}
+
+.cmdk-thumb canvas {
+  width: 34px;
+  height: 34px;
+  display: block;
+}
+
+.cmdk-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.cmdk-item-title {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmdk-item-sub {
+  display: block;
+  font-size: 11.2px;
+  color: #5c4934;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmdk-item-badge {
+  font-family: 'Google Sans Code', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: #5e3d0f;
+  background: rgba(235, 223, 202, 0.85);
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.cmdk-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-sepia);
+  background: rgba(242, 232, 212, 0.72);
+  font-size: 11px;
+  color: #5c4934;
+  flex-wrap: wrap;
+}
+
+.cmdk-empty {
+  padding: 28px 14px;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+/* ==========================================================================
+   2. Archival Studio Dialog (Challenge · Compare · My Exhibition & Postcard)
+   ========================================================================== */
+.studio-dialog {
+  width: min(1160px, 100%);
+  height: min(88vh, 820px);
+  background: #fbf7ee;
+  border: 1.5px solid var(--border-sepia-strong);
+  border-radius: 20px;
+  box-shadow: 0 30px 72px rgba(20, 14, 8, 0.42);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(180deg, #fffcf5, #f5ecdc);
+  border-bottom: 1px solid var(--border-sepia);
+  flex-wrap: wrap;
+}
+
+.studio-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-brand-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.studio-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(232, 219, 196, 0.78);
+  border: 1px solid var(--border-sepia-strong);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.studio-tab-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-body);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.studio-tab-btn.active {
+  background: linear-gradient(135deg, #8c6223, #6d4a14);
+  color: #fffaf0;
+  box-shadow: 0 2px 6px rgba(92, 62, 18, 0.24);
+}
+
+.studio-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(250, 244, 232, 0.94);
+  color: var(--ink-strong);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.studio-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px 22px;
+}
+
+.studio-pane {
+  display: none;
+}
+
+.studio-pane.active {
+  display: block;
+}
+
+/* --- Tab 1: 3D Globe Origin Challenge --- */
+.quiz-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.quiz-card {
+  background: #fffcf5;
+  border: 1px solid var(--border-sepia);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.quiz-score-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: 'Google Sans Code', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-brass-deep);
+}
+
+.quiz-plate-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 290px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1f1a15;
+  border: 1px solid rgba(154, 124, 82, 0.42);
+}
+
+#studio-quiz-plate {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.quiz-mystery-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(28, 20, 12, 0.86);
+  color: #fcefd2;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.quiz-era-lbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-body);
+}
+
+.quiz-era-pills {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.quiz-era-btn {
+  padding: 6px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(246, 238, 222, 0.85);
+  color: var(--ink-body);
+  font-family: inherit;
+  font-size: 11.2px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.quiz-era-btn.active {
+  background: #3b2b1b;
+  border-color: #251a0f;
+  color: #fffaf0;
+}
+
+.quiz-era-btn.correct {
+  background: #2f6f4e;
+  border-color: #1f5338;
+  color: #fffaf0;
+}
+
+.quiz-era-btn.wrong {
+  background: #9f3a2e;
+  border-color: #7c271d;
+  color: #fffaf0;
+}
+
+.quiz-feedback {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(238, 227, 206, 0.78);
+  border: 1px solid var(--border-sepia-strong);
+  font-size: 12.2px;
+  line-height: 1.5;
+  color: var(--ink-strong);
+}
+
+.quiz-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quiz-globe-stage {
+  position: relative;
+  min-height: 460px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border-sepia-strong);
+  background: radial-gradient(circle at 52% 48%, #fcf6e8 0%, #f2e6ce 56%, #e6d4b3 100%);
+  box-shadow: var(--shadow-subtle);
+}
+
+#studio-quiz-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.quiz-globe-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(252, 248, 240, 0.94);
+  border: 1px solid var(--border-sepia);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Tab 2: Side-by-Side Comparison --- */
+.cmp-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.cmp-presets {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.cmp-preset-btn {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(248, 240, 224, 0.88);
+  color: #5b3e19;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cmp-preset-btn:hover,
+.cmp-preset-btn.active {
+  background: linear-gradient(135deg, #8c6223, #6d4a14);
+  color: #fffaf0;
+  border-color: #6d4a14;
+}
+
+.cmp-split-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cmp-col-card {
+  background: #fffcf5;
+  border: 1px solid var(--border-sepia);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.cmp-select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-sepia-strong);
+  background: #fbf6ea;
+  color: var(--ink-strong);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.cmp-plate-box {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #201a15;
+  border: 1px solid rgba(154, 124, 82, 0.36);
+}
+
+.cmp-plate-box canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cmp-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.cmp-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cmp-meta-table th {
+  text-align: left;
+  color: var(--ink-muted);
+  font-weight: 600;
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid rgba(176, 150, 113, 0.22);
+  width: 38%;
+}
+
+.cmp-meta-table td {
+  color: var(--ink-strong);
+  font-weight: 600;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(176, 150, 113, 0.22);
+}
+
+.cmp-delta-banner {
+  margin-top: 14px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(244, 232, 208, 0.92), rgba(235, 218, 184, 0.85));
+  border: 1px solid var(--border-sepia-strong);
+  font-size: 12.8px;
+  font-weight: 600;
+  color: #4a3110;
+  text-align: center;
+}
+
+/* --- Tab 3: My Exhibition & Archival Postcard --- */
+.exh-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(244, 234, 214, 0.72);
+  border: 1px solid var(--border-sepia);
+}
+
+.exh-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.exh-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.exh-item-card {
+  background: #fffcf5;
+  border: 1px solid var(--border-sepia);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-subtle);
+}
+
+.exh-item-canvas {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  background: #201a15;
+}
+
+.exh-item-body {
+  padding: 12px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.exh-item-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+
+.exh-item-meta {
+  font-size: 11.2px;
+  color: var(--ink-muted);
+}
+
+.exh-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(176, 150, 113, 0.22);
+}
+
+.studio-mini-btn {
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--border-sepia-strong);
+  background: rgba(246, 238, 222, 0.92);
+  color: #543916;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.studio-mini-btn:hover {
+  background: #e2cda4;
+  color: var(--ink-strong);
+}
+
+.studio-mini-btn.is-gold {
+  background: linear-gradient(135deg, #8c6223, #6d4a14);
+  color: #fffaf0;
+  border-color: #6d4a14;
+}
+
+.studio-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 260;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: #2c2116;
+  color: #fffaf0;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 10px 26px rgba(20, 14, 8, 0.34);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.studio-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Inline Contextual Action Buttons Injected into Artifact Modals */
+.studio-ctx-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#site-nav .nav-inner {
+  max-width: 1580px;
+}
+
+@media (max-width: 1640px) {
+  .nav-links a[data-nav-section],
+  .ca-sec-links,
+  .cat-sec-links {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .st-kbd-chip,
+  .nav-cta-btn {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  #site-nav .nav-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 100%;
+    flex-shrink: 1;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 860px) {
+  .quiz-grid,
+  .cmp-split-grid {
+    grid-template-columns: 1fr;
+  }
+  .quiz-globe-stage {
+    min-height: 320px;
+  }
+  .studio-dialog {
+    height: 94vh;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  #site-nav .nav-right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .st-nav-tool-btn {
+    padding: 4px 7px;
+    font-size: 10.5px;
+  }
+}

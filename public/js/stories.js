@@ -336,6 +336,10 @@
       kpiTotalDist: 'Cumulative Distance',
       autoPlayBtn: 'Auto-Play Tour',
       pausePlayBtn: 'Pause Tour',
+      audioListenBtn: '🔊 Audio Guide',
+      audioStopBtn: '⏹ Stop Audio',
+      dockAudioBtn: '🔊 Listen',
+      dockAudioStopBtn: '⏹ Mute',
       reuniteBtn: '🏠 Fly All 6 Home',
       disperseBtn: '⇄ Show in Museums',
       prevStopBtn: '‹ Prev',
@@ -366,6 +370,10 @@
       kpiTotalDist: '累计流散球面航程',
       autoPlayBtn: '自动巡礼导览',
       pausePlayBtn: '暂停自动巡礼',
+      audioListenBtn: '🔊 语音导览',
+      audioStopBtn: '⏹ 停止朗读',
+      dockAudioBtn: '🔊 听解说',
+      dockAudioStopBtn: '⏹ 停止',
       reuniteBtn: '🏠 六宝一键回乡合璧',
       disperseBtn: '⇄ 显示现藏博物馆分布',
       prevStopBtn: '‹ 上一站',
@@ -390,6 +398,8 @@
     stopIndex: 0,
     autoPlaying: false,
     autoTimer: 0,
+    audioPlaying: false,
+    speechGen: 0,
     reunitedHome: false,
     flightPos: 0, // 0 = at holding museum, 1 = reunited at archaeological origin!
     flightFrom: 0,
@@ -733,6 +743,8 @@
   const elPrologueAutoplay = document.getElementById('st-prologue-autoplay');
   const elProloguePlayIcon = document.getElementById('st-prologue-play-icon');
   const elProloguePlayLbl = document.getElementById('st-prologue-play-lbl');
+  const elPrologueAudio = document.getElementById('st-prologue-audio');
+  const elPrologueAudioLbl = document.getElementById('st-prologue-audio-lbl');
   const elPrologueReunite = document.getElementById('st-prologue-reunite');
   const elPrologueReuniteLbl = document.getElementById('st-prologue-reunite-lbl');
   const elChaptersList = document.getElementById('st-chapters-list');
@@ -747,6 +759,7 @@
   const elBtnPrev = document.getElementById('st-btn-prev');
   const elBtnPlay = document.getElementById('st-btn-play');
   const elDockPlayLbl = document.getElementById('st-dock-play-lbl');
+  const elBtnAudio = document.getElementById('st-btn-audio');
   const elBtnReunite = document.getElementById('st-btn-reunite');
   const elBtnArcs = document.getElementById('st-btn-arcs');
   const elBtnNext = document.getElementById('st-btn-next');
@@ -802,10 +815,82 @@
     state.targetZoom = stop.distKm > 8500 ? 0.96 : (stop.distKm > 4500 ? 1.06 : 1.18);
   }
 
+  const SPEECH_SUPPORTED = typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function';
+
+  function stopAudioGuide(keepFlag) {
+    state.speechGen++;
+    if (!keepFlag) state.audioPlaying = false;
+    if (SPEECH_SUPPORTED) {
+      try { window.speechSynthesis.cancel(); } catch (_) {}
+    }
+    syncPlayAndReuniteButtons();
+  }
+
+  function speakCurrentStop() {
+    if (!SPEECH_SUPPORTED || !state.audioPlaying) return;
+    const myGen = ++state.speechGen;
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    const story = curStory();
+    const stop = curStop();
+    const m = MUSEUMS[stop.museumId] || MUSEUMS.bm;
+    const mc = (m.copy && m.copy[state.lang]) || m.copy.en;
+    const text = state.lang === 'zh'
+      ? ('第' + (state.stopIndex + 1) + '站，' + stop.art.zh + '。原属' + stop.siteZh + '，现藏于' + mc.shortName + '，距原址' + fmtNum(stop.distKm) + '公里。' + stop.storyZh)
+      : ('Stop ' + (state.stopIndex + 1) + ': ' + stop.art.en + '. Originating from ' + stop.siteEn + ', held today at ' + mc.shortName + ', ' + fmtNum(stop.distKm) + ' kilometers from home. ' + stop.storyEn);
+    const utt = new window.SpeechSynthesisUtterance(text);
+    utt.lang = state.lang === 'zh' ? 'zh-CN' : 'en-US';
+    utt.rate = state.lang === 'zh' ? 1.02 : 0.98;
+    try {
+      const voices = window.speechSynthesis.getVoices() || [];
+      const prefix = state.lang === 'zh' ? 'zh' : 'en';
+      const match = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+      if (match) utt.voice = match;
+    } catch (_) {}
+    utt.onend = () => {
+      if (myGen !== state.speechGen || !state.audioPlaying) return;
+      if (state.stopIndex < story.stops.length - 1) {
+        selectStop(state.stopIndex + 1, true);
+        speakCurrentStop();
+      } else {
+        stopAudioGuide(false);
+      }
+    };
+    utt.onerror = () => {
+      if (myGen === state.speechGen) stopAudioGuide(false);
+    };
+    try {
+      window.speechSynthesis.speak(utt);
+    } catch (_) {
+      stopAudioGuide(false);
+    }
+  }
+
+  function toggleAudioGuide() {
+    if (!SPEECH_SUPPORTED) return;
+    if (state.audioPlaying) {
+      stopAudioGuide(false);
+    } else {
+      state.autoPlaying = false;
+      state.audioPlaying = true;
+      syncPlayAndReuniteButtons();
+      speakCurrentStop();
+    }
+  }
+
   function syncPlayAndReuniteButtons() {
     elProloguePlayIcon.textContent = state.autoPlaying ? '⏸' : '▶';
     elProloguePlayLbl.textContent = state.autoPlaying ? t('pausePlayBtn') : t('autoPlayBtn');
     elDockPlayLbl.textContent = (state.autoPlaying ? '⏸ ' : '▶ ') + (state.autoPlaying ? t('pausePlayBtn') : t('autoPlayBtn'));
+
+    if (elPrologueAudio && elPrologueAudioLbl) {
+      elPrologueAudio.classList.toggle('is-hidden', !SPEECH_SUPPORTED);
+      elPrologueAudioLbl.textContent = state.audioPlaying ? t('audioStopBtn') : t('audioListenBtn');
+    }
+    if (elBtnAudio) {
+      elBtnAudio.classList.toggle('is-hidden', !SPEECH_SUPPORTED);
+      elBtnAudio.textContent = state.audioPlaying ? t('dockAudioStopBtn') : t('dockAudioBtn');
+      elBtnAudio.classList.toggle('active', state.audioPlaying);
+    }
 
     elPrologueReuniteLbl.textContent = state.reunitedHome ? t('disperseBtn') : t('reuniteBtn');
     elBtnReunite.textContent = state.reunitedHome ? t('dockDisperseBtn') : t('dockReuniteBtn');
@@ -920,6 +1005,7 @@
       btn.appendChild(meta);
       btn.addEventListener('click', () => {
         state.autoPlaying = false;
+        stopAudioGuide(false);
         selectStory(i, 0, true);
       });
       frag.appendChild(btn);
@@ -1517,6 +1603,7 @@
   }
 
   function toggleAutoPlay() {
+    if (state.audioPlaying) stopAudioGuide(false);
     state.autoPlaying = !state.autoPlaying;
     state.autoTimer = 0;
     syncPlayAndReuniteButtons();
@@ -1525,18 +1612,23 @@
   function wireEvents() {
     elPrologueAutoplay.addEventListener('click', toggleAutoPlay);
     elBtnPlay.addEventListener('click', toggleAutoPlay);
+    if (elPrologueAudio) elPrologueAudio.addEventListener('click', toggleAudioGuide);
+    if (elBtnAudio) elBtnAudio.addEventListener('click', toggleAudioGuide);
     elPrologueReunite.addEventListener('click', toggleReunite);
     elBtnReunite.addEventListener('click', toggleReunite);
+    window.addEventListener('beforeunload', () => stopAudioGuide(false));
 
     elBtnPrev.addEventListener('click', () => {
       state.autoPlaying = false;
       syncPlayAndReuniteButtons();
       selectStop(state.stopIndex - 1, true);
+      if (state.audioPlaying) speakCurrentStop();
     });
     elBtnNext.addEventListener('click', () => {
       state.autoPlaying = false;
       syncPlayAndReuniteButtons();
       selectStop(state.stopIndex + 1, true);
+      if (state.audioPlaying) speakCurrentStop();
     });
     elBtnArcs.addEventListener('click', () => {
       state.showAllArcs = !state.showAllArcs;
@@ -1554,6 +1646,7 @@
         renderStoryPrologueAndChapters();
         syncPlayAndReuniteButtons();
         updateHudAndActiveCard();
+        if (state.audioPlaying) speakCurrentStop();
         if (elLightbox.classList.contains('open') && state.lightboxStopIdx >= 0) {
           openLightbox(state.lightboxStopIdx);
         }

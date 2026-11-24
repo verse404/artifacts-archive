@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
   <link rel="stylesheet" href="./css/stories.css" />
+  <link rel="stylesheet" href="./css/studio.css" />
 </head>
 <body class="stories-page">
   <header id="site-nav">
@@ -79,6 +80,9 @@
               <span id="st-prologue-play-icon">▶</span>
               <span id="st-prologue-play-lbl" data-i18n="autoPlayBtn">Auto-Play Tour</span>
             </button>
+            <button id="st-prologue-audio" type="button" class="btn-secondary-vellum">
+              <span id="st-prologue-audio-lbl" data-i18n="audioListenBtn">🔊 Audio Guide</span>
+            </button>
             <button id="st-prologue-reunite" type="button" class="btn-secondary-vellum">
               <span id="st-prologue-reunite-lbl" data-i18n="reuniteBtn">🏠 Fly All 6 Home</span>
             </button>
@@ -109,6 +113,7 @@
             <button id="st-btn-play" type="button" class="dock-btn action-highlight">
               <span id="st-dock-play-lbl">▶ Auto-Play</span>
             </button>
+            <button id="st-btn-audio" type="button" class="dock-btn" data-i18n="dockAudioBtn">🔊 Listen</button>
             <button id="st-btn-reunite" type="button" class="dock-btn" data-i18n="dockReuniteBtn">🏠 Reunite Home</button>
             <button id="st-btn-arcs" type="button" class="dock-btn active" data-i18n="dockArcsBtn">All 6 Routes</button>
             <button id="st-btn-next" type="button" class="dock-btn" aria-label="Next story stop" data-i18n="nextStopBtn">Next ›</button>
@@ -161,6 +166,7 @@
   </footer>
 
   <script src="./js/assets.js" defer></script>
+  <script src="./js/studio.js" defer></script>
   <script src="./js/stories.js" defer></script>
 </body>
 </html>
