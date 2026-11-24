@@ -23,7 +23,7 @@
     'berlin', 'tnm', 'smithsonian', 'quaibranly', 'rijks', 'vatican'
   ];
   const DEG2RAD = Math.PI / 180;
-  const GLOBE_MIP_SIZE = 72;
+  const GLOBE_MIP_SIZE = 64;
 
   const YEAR_STOPS = [
     -6000, -4000, -3200, -2600, -2000, -1600, -1300, -1000,
@@ -463,13 +463,28 @@
         if (ring.length >= 3) destRings.push(ring);
       }
     }
-    const allRingsList = Array.from(polyMap.values());
+    const allRingsList = Array.from(polyMap.values()).map((rings) => {
+      let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+      for (let r = 0; r < rings.length; r++) {
+        const ring = rings[r];
+        for (let p = 0; p < ring.length; p++) {
+          const ln = ring[p][0], lt = ring[p][1];
+          if (ln < minLon) minLon = ln;
+          if (ln > maxLon) maxLon = ln;
+          if (lt < minLat) minLat = lt;
+          if (lt > maxLat) maxLat = lt;
+        }
+      }
+      return { rings, minLon, maxLon, minLat, maxLat };
+    });
     const landDots = [];
-    for (let lat = -58; lat <= 74; lat += 2.4) {
-      const lonStep = 2.4 / Math.max(0.28, Math.cos(lat * DEG2RAD));
+    for (let lat = -58; lat <= 74; lat += 2.6) {
+      const lonStep = 2.6 / Math.max(0.28, Math.cos(lat * DEG2RAD));
       for (let lon = -178; lon <= 178; lon += lonStep) {
         for (let c = 0; c < allRingsList.length; c++) {
-          if (pointInMultiPolygon(lon, lat, allRingsList[c])) {
+          const box = allRingsList[c];
+          if (lat < box.minLat || lat > box.maxLat || lon < box.minLon || lon > box.maxLon) continue;
+          if (pointInMultiPolygon(lon, lat, box.rings)) {
             landDots.push(lonLatToVec3(lon, lat));
             break;
           }
@@ -482,6 +497,17 @@
 
   const atlasPromises = {};
   let loadedAtlasCount = 0;
+  let caAtlasSigBump = 0;
+  let caAtlasDebounceTimer = null;
+
+  function bumpCaAtlasVersion() {
+    loadedAtlasCount++;
+    if (caAtlasDebounceTimer) clearTimeout(caAtlasDebounceTimer);
+    caAtlasDebounceTimer = setTimeout(() => {
+      caAtlasSigBump = loadedAtlasCount;
+      ensureCaRaf();
+    }, 240);
+  }
 
   function loadMuseumAtlas(museumId) {
     const m = MUSEUMS[museumId] || MUSEUMS.bm;
@@ -501,31 +527,62 @@
       rows: m.atlasRows,
       tileSize: m.tileSize,
       spriteAtlas: null,
-      globeSpriteAtlas: gCanvas
+      globeSpriteAtlas: gCanvas,
+      spriteColors: null
     };
 
     atlasPromises[m.id] = new Promise((resolve) => {
       const img = new Image();
       img.decoding = 'async';
-      img.onload = () => {
-        entry.spriteAtlas = img;
-        gCtx.imageSmoothingEnabled = true;
-        gCtx.imageSmoothingQuality = 'high';
-        gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
+      const finishMip = (bmp) => {
+        if (bmp) {
+          gCtx.drawImage(bmp, 0, 0, gCanvas.width, gCanvas.height);
+          if (typeof bmp.close === 'function') bmp.close();
+        } else {
+          gCtx.imageSmoothingEnabled = true;
+          gCtx.imageSmoothingQuality = 'medium';
+          gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
+        }
+        try {
+          const pc = document.createElement('canvas');
+          pc.width = m.atlasCols;
+          pc.height = m.atlasRows;
+          const pCtx = pc.getContext('2d');
+          pCtx.drawImage(gCanvas, 0, 0, m.atlasCols, m.atlasRows);
+          const pd = pCtx.getImageData(0, 0, m.atlasCols, m.atlasRows).data;
+          const colors = new Array(m.atlasCols * m.atlasRows);
+          for (let idx = 0; idx < colors.length; idx++) {
+            const o = idx * 4;
+            colors[idx] = 'rgb(' + pd[o] + ',' + pd[o + 1] + ',' + pd[o + 2] + ')';
+          }
+          entry.spriteColors = colors;
+        } catch (_) {}
         gCtx.strokeStyle = 'rgba(255, 248, 234, 0.24)';
-        gCtx.lineWidth = 1.4;
+        gCtx.lineWidth = 1.2;
         for (let idx = 0; idx < m.atlasCols * m.atlasRows; idx++) {
           const gx = (idx % m.atlasCols) * GLOBE_MIP_SIZE;
           const gy = Math.floor(idx / m.atlasCols) * GLOBE_MIP_SIZE;
-          gCtx.strokeRect(gx + 0.7, gy + 0.7, GLOBE_MIP_SIZE - 1.4, GLOBE_MIP_SIZE - 1.4);
+          gCtx.strokeRect(gx + 0.6, gy + 0.6, GLOBE_MIP_SIZE - 1.2, GLOBE_MIP_SIZE - 1.2);
         }
         atlasCache[m.id] = entry;
-        loadedAtlasCount++;
+        bumpCaAtlasVersion();
         resolve(entry);
+      };
+      img.onload = () => {
+        entry.spriteAtlas = img;
+        if (typeof window.createImageBitmap === 'function') {
+          window.createImageBitmap(img, {
+            resizeWidth: gCanvas.width,
+            resizeHeight: gCanvas.height,
+            resizeQuality: 'medium'
+          }).then(finishMip).catch(() => finishMip(null));
+        } else {
+          finishMip(null);
+        }
       };
       img.onerror = () => {
         atlasCache[m.id] = entry;
-        loadedAtlasCount++;
+        bumpCaAtlasVersion();
         resolve(entry);
       };
       img.src = m.atlasUri;
@@ -1295,111 +1352,141 @@
       : 'Strictly filtered to masterpieces created within your selected period and ordered chronologically so you can compare simultaneous achievements across civilizations.';
 
     elSyncGrid.replaceChildren();
-    const frag = document.createDocumentFragment();
-
-    for (let i = 0; i < list.length; i++) {
-      const art = list[i];
-      const m = MUSEUMS[art.museumId] || MUSEUMS.bm;
-      const mc = (m.copy && m.copy[state.lang]) || m.copy.en;
-      const objHref = buildArtifactObjUrl(art);
-
-      const card = document.createElement('article');
-      card.className = 'exhibit-card';
-
-      const plateWrap = document.createElement('div');
-      plateWrap.className = 'exhibit-plate-wrap';
-      plateWrap.setAttribute('role', 'button');
-      plateWrap.setAttribute('tabindex', '0');
-      plateWrap.setAttribute('aria-label', (state.lang === 'zh' ? '查看大图：' : 'Enlarge plate: ') + (state.lang === 'zh' ? art.zh : art.en));
-      plateWrap.addEventListener('click', () => openLightbox(art));
-      plateWrap.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openLightbox(art);
-        }
-      });
-
-      const cnv = document.createElement('canvas');
-      cnv.dataset.sprite = String(art.sprite);
-      cnv.dataset.mid = art.museumId;
-      if (!syncObserver || i < 12) {
-        cnv.dataset.rendered = '1';
-        cnv.width = 480;
-        cnv.height = 360;
-        drawSpriteTile(cnv, art.sprite, art.museumId, true);
-      } else {
-        cnv.width = 16;
-        cnv.height = 12;
-        syncObserver.observe(cnv);
-      }
-
-      const dateRibbon = document.createElement('span');
-      dateRibbon.className = 'ca-date-ribbon';
-      dateRibbon.textContent = formatDateSpanBadge(art.startYr, art.endYr);
-
-      const originRibbon = document.createElement('span');
-      originRibbon.className = 'exhibit-acq-tag';
-      originRibbon.textContent = countryDisplayName(art.countryEn, art.countryZh);
-
-      const museumRibbon = document.createElement('span');
-      museumRibbon.className = 'ca-museum-ribbon';
-      museumRibbon.textContent = mc.shortName;
-
-      plateWrap.appendChild(cnv);
-      plateWrap.appendChild(dateRibbon);
-      plateWrap.appendChild(originRibbon);
-      plateWrap.appendChild(museumRibbon);
-
-      const body = document.createElement('div');
-      body.className = 'exhibit-content';
-      const topB = document.createElement('div');
-
-      const h3 = document.createElement('h3');
-      h3.className = 'exhibit-title-zh';
-      h3.textContent = state.lang === 'zh' ? art.zh : art.en;
-
-      const mat = document.createElement('div');
-      mat.className = 'exhibit-title-en';
-      mat.textContent = state.lang === 'zh' ? art.materialZh : art.materialEn;
-
-      const desc = document.createElement('p');
-      desc.className = 'exhibit-desc';
-      desc.textContent = state.lang === 'zh' ? art.descZh : art.descEn;
-
-      topB.appendChild(h3);
-      topB.appendChild(mat);
-      topB.appendChild(desc);
-
-      const acts = document.createElement('div');
-      acts.className = 'exhibit-actions';
-
-      const locBtn = document.createElement('button');
-      locBtn.type = 'button';
-      locBtn.className = 'locate-globe-btn';
-      locBtn.textContent = state.lang === 'zh' ? '地球仪定位 ↑' : 'Locate on Globe ↑';
-      locBtn.addEventListener('click', () => {
-        elGlobeSection.scrollIntoView({ behavior: navigator.webdriver ? 'instant' : 'smooth', block: 'start' });
-        openModal(art, true);
-      });
-
-      const ext = document.createElement('a');
-      ext.className = 'bm-ext-link';
-      ext.href = objHref;
-      ext.target = '_blank';
-      ext.rel = 'noopener noreferrer';
-      ext.textContent = mc.cardLinkBtn;
-
-      acts.appendChild(locBtn);
-      acts.appendChild(ext);
-      body.appendChild(topB);
-      body.appendChild(acts);
-
-      card.appendChild(plateWrap);
-      card.appendChild(body);
-      frag.appendChild(card);
+    if (window.__caSyncMoreObs) {
+      window.__caSyncMoreObs.disconnect();
+      window.__caSyncMoreObs = null;
     }
+    let syncCursor = 0;
 
-    elSyncGrid.appendChild(frag);
+    const appendBatch = (batchSize) => {
+      const end = Math.min(list.length, syncCursor + batchSize);
+      if (syncCursor >= end) return;
+      const frag = document.createDocumentFragment();
+
+      for (let i = syncCursor; i < end; i++) {
+        const art = list[i];
+        const m = MUSEUMS[art.museumId] || MUSEUMS.bm;
+        const mc = (m.copy && m.copy[state.lang]) || m.copy.en;
+        const objHref = buildArtifactObjUrl(art);
+
+        const card = document.createElement('article');
+        card.className = 'exhibit-card';
+
+        const plateWrap = document.createElement('div');
+        plateWrap.className = 'exhibit-plate-wrap';
+        plateWrap.setAttribute('role', 'button');
+        plateWrap.setAttribute('tabindex', '0');
+        plateWrap.setAttribute('aria-label', (state.lang === 'zh' ? '查看大图：' : 'Enlarge plate: ') + (state.lang === 'zh' ? art.zh : art.en));
+        plateWrap.addEventListener('click', () => openLightbox(art));
+        plateWrap.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openLightbox(art);
+          }
+        });
+
+        const cnv = document.createElement('canvas');
+        cnv.dataset.sprite = String(art.sprite);
+        cnv.dataset.mid = art.museumId;
+        if (!syncObserver || i < 12) {
+          cnv.dataset.rendered = '1';
+          cnv.width = 360;
+          cnv.height = 270;
+          drawSpriteTile(cnv, art.sprite, art.museumId, true);
+        } else {
+          cnv.width = 16;
+          cnv.height = 12;
+          syncObserver.observe(cnv);
+        }
+
+        const dateRibbon = document.createElement('span');
+        dateRibbon.className = 'ca-date-ribbon';
+        dateRibbon.textContent = formatDateSpanBadge(art.startYr, art.endYr);
+
+        const originRibbon = document.createElement('span');
+        originRibbon.className = 'exhibit-acq-tag';
+        originRibbon.textContent = countryDisplayName(art.countryEn, art.countryZh);
+
+        const museumRibbon = document.createElement('span');
+        museumRibbon.className = 'ca-museum-ribbon';
+        museumRibbon.textContent = mc.shortName;
+
+        plateWrap.appendChild(cnv);
+        plateWrap.appendChild(dateRibbon);
+        plateWrap.appendChild(originRibbon);
+        plateWrap.appendChild(museumRibbon);
+
+        const body = document.createElement('div');
+        body.className = 'exhibit-content';
+        const topB = document.createElement('div');
+
+        const h3 = document.createElement('h3');
+        h3.className = 'exhibit-title-zh';
+        h3.textContent = state.lang === 'zh' ? art.zh : art.en;
+
+        const mat = document.createElement('div');
+        mat.className = 'exhibit-title-en';
+        mat.textContent = state.lang === 'zh' ? art.materialZh : art.materialEn;
+
+        const desc = document.createElement('p');
+        desc.className = 'exhibit-desc';
+        desc.textContent = state.lang === 'zh' ? art.descZh : art.descEn;
+
+        topB.appendChild(h3);
+        topB.appendChild(mat);
+        topB.appendChild(desc);
+
+        const acts = document.createElement('div');
+        acts.className = 'exhibit-actions';
+
+        const locBtn = document.createElement('button');
+        locBtn.type = 'button';
+        locBtn.className = 'locate-globe-btn';
+        locBtn.textContent = state.lang === 'zh' ? '地球仪定位 ↑' : 'Locate on Globe ↑';
+        locBtn.addEventListener('click', () => {
+          elGlobeSection.scrollIntoView({ behavior: navigator.webdriver ? 'instant' : 'smooth', block: 'start' });
+          openModal(art, true);
+        });
+
+        const ext = document.createElement('a');
+        ext.className = 'bm-ext-link';
+        ext.href = objHref;
+        ext.target = '_blank';
+        ext.rel = 'noopener noreferrer';
+        ext.textContent = mc.cardLinkBtn;
+
+        acts.appendChild(locBtn);
+        acts.appendChild(ext);
+        body.appendChild(topB);
+        body.appendChild(acts);
+
+        card.appendChild(plateWrap);
+        card.appendChild(body);
+        frag.appendChild(card);
+      }
+      syncCursor = end;
+      elSyncGrid.appendChild(frag);
+    };
+
+    appendBatch(24);
+    if (syncCursor < list.length && typeof IntersectionObserver === 'function') {
+      const sentinel = document.createElement('div');
+      sentinel.className = 'ca-sync-sentinel';
+      elSyncGrid.appendChild(sentinel);
+      window.__caSyncMoreObs = new IntersectionObserver((entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          sentinel.remove();
+          appendBatch(24);
+          if (syncCursor < list.length) {
+            elSyncGrid.appendChild(sentinel);
+          } else {
+            window.__caSyncMoreObs.disconnect();
+            window.__caSyncMoreObs = null;
+          }
+        }
+      }, { rootMargin: '600px 0px' });
+      window.__caSyncMoreObs.observe(sentinel);
+    }
   }
 
   function openModal(art, flyTo) {
@@ -1581,16 +1668,23 @@
 
   // 3D Globe Renderer (Strictly Filtered by Creation Age)
   const gCtx = elGlobeCanvas.getContext('2d');
-  let vpW = 960, vpH = 660, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let vpW = 960, vpH = 660, dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   let visibleCards = [];
+  let caBaseCanvas = null;
+  let caBaseCtx = null;
+  let caBaseKey = '';
+  let caScrollPauseUntil = 0;
 
   function resizeGlobe() {
     const rect = elGlobeSection.getBoundingClientRect();
     vpW = Math.max(320, Math.round(rect.width));
     vpH = Math.max(420, Math.round(rect.height));
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const maxDpr = vpW > 1000 ? 1.15 : 1.35;
+    dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     elGlobeCanvas.width = Math.round(vpW * dpr);
     elGlobeCanvas.height = Math.round(vpH * dpr);
+    caBaseKey = '';
+    caLastSig = '';
     drawHistogram();
   }
 
@@ -1615,11 +1709,129 @@
     }
   }
 
+  function renderCaBaseToCache(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, fastMotion) {
+    const cw = elGlobeCanvas.width;
+    const ch = elGlobeCanvas.height;
+    if (!caBaseCanvas) {
+      caBaseCanvas = document.createElement('canvas');
+      caBaseCtx = caBaseCanvas.getContext('2d');
+    }
+    if (caBaseCanvas.width !== cw || caBaseCanvas.height !== ch) {
+      caBaseCanvas.width = cw;
+      caBaseCanvas.height = ch;
+    }
+    const bCtx = caBaseCtx;
+    bCtx.save();
+    bCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bCtx.clearRect(0, 0, vpW, vpH);
+
+    if (state.showAurora) {
+      const aur = bCtx.createRadialGradient(cx + baseR * 0.14, cy - baseR * 0.04, baseR * 0.88, cx + baseR * 0.08, cy, baseR * 1.14);
+      aur.addColorStop(0, 'rgba(235, 215, 175, 0)');
+      aur.addColorStop(0.45, 'rgba(209, 166, 92, 0.20)');
+      aur.addColorStop(0.72, 'rgba(124, 188, 172, 0.16)');
+      aur.addColorStop(1, 'rgba(245, 236, 220, 0)');
+      bCtx.fillStyle = aur;
+      bCtx.beginPath();
+      bCtx.arc(cx, cy, baseR * 1.15, 0, Math.PI * 2);
+      bCtx.fill();
+    }
+
+    // Soft radial drop-shadow (eliminates slow shadowBlur=36 Gaussian pass!)
+    const shGrad = bCtx.createRadialGradient(cx, cy + 12, baseR * 0.88, cx, cy + 12, baseR * 1.11);
+    shGrad.addColorStop(0, 'rgba(92, 68, 34, 0.16)');
+    shGrad.addColorStop(0.55, 'rgba(92, 68, 34, 0.08)');
+    shGrad.addColorStop(1, 'rgba(92, 68, 34, 0)');
+    bCtx.fillStyle = shGrad;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy + 12, baseR * 1.11, 0, Math.PI * 2);
+    bCtx.fill();
+
+    const sph = bCtx.createRadialGradient(cx - baseR * 0.26, cy - baseR * 0.28, baseR * 0.08, cx, cy, baseR);
+    sph.addColorStop(0, '#faf3e4');
+    sph.addColorStop(0.62, '#efe2c7');
+    sph.addColorStop(0.92, '#e2cfa9');
+    sph.addColorStop(1, '#d3bc92');
+    bCtx.fillStyle = sph;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
+    bCtx.fill();
+
+    // Land dots & borders (no slow circular clip(), zero array allocs, screen-space vertex decimation)
+    bCtx.fillStyle = 'rgba(166, 139, 100, 0.40)';
+    const dotSz = Math.max(1.1, 1.45 * state.zoom);
+    const halfDot = dotSz * 0.5;
+    const dotStep = fastMotion ? 2 : 1;
+    const dots = state.landDots3D;
+    for (let i = 0; i < dots.length; i += dotStep) {
+      const d = dots[i];
+      const dx = d[0], dy = d[1], dz = d[2];
+      const x1 = dx * cosLon + dz * sinLon;
+      const z1 = -dx * sinLon + dz * cosLon;
+      const z2 = dy * sinLat + z1 * cosLat;
+      if (z2 > 0.03) {
+        const y2 = dy * cosLat - z1 * sinLat;
+        bCtx.fillRect(cx + x1 * baseR - halfDot, cy - y2 * baseR - halfDot, dotSz, dotSz);
+      }
+    }
+
+    bCtx.strokeStyle = 'rgba(155, 128, 89, 0.56)';
+    bCtx.lineWidth = 0.9;
+    const arcs = state.borderArcs3D;
+    const minSegPx = fastMotion ? 3.8 : 1.6;
+    const chunkMax = 36;
+    let chunkCount = 0;
+    bCtx.beginPath();
+    for (let i = 0; i < arcs.length; i++) {
+      const arc = arcs[i];
+      if (fastMotion && arc.length < 4) continue;
+      let st = false;
+      let lx = -9999, ly = -9999;
+      for (let j = 0; j < arc.length; j++) {
+        const p = arc[j];
+        const px = p[0], py = p[1], pz = p[2];
+        const x1 = px * cosLon + pz * sinLon;
+        const z1 = -px * sinLon + pz * cosLon;
+        const z2 = py * sinLat + z1 * cosLat;
+        if (z2 > 0.015) {
+          const y2 = py * cosLat - z1 * sinLat;
+          const sx = cx + x1 * baseR;
+          const sy = cy - y2 * baseR;
+          if (!st) { bCtx.moveTo(sx, sy); lx = sx; ly = sy; st = true; }
+          else if (Math.abs(sx - lx) + Math.abs(sy - ly) >= minSegPx || j === arc.length - 1) {
+            bCtx.lineTo(sx, sy); lx = sx; ly = sy;
+          }
+        } else {
+          st = false;
+        }
+      }
+      if (++chunkCount >= chunkMax) {
+        bCtx.stroke();
+        bCtx.beginPath();
+        chunkCount = 0;
+      }
+    }
+    if (chunkCount > 0) bCtx.stroke();
+
+    bCtx.strokeStyle = 'rgba(165, 138, 98, 0.55)';
+    bCtx.lineWidth = 1.1;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
+    bCtx.stroke();
+
+    bCtx.restore();
+  }
+
   function renderGlobeFrame(now) {
     caRafPending = false;
     if (!caGlobeInViewport || document.hidden) return;
 
     const ts = typeof now === 'number' ? now : performance.now();
+    if (!state.isDragging && ts < caScrollPauseUntil) {
+      ensureCaRaf();
+      return;
+    }
+
     const dt = Math.min(0.12, Math.max(0.001, (ts - lastTs) / 1000));
     lastTs = ts;
 
@@ -1643,15 +1855,18 @@
       state.targetRotLon -= 0.18 * dt;
     }
     const alpha = 1 - Math.exp(-dt * 6.5);
-    state.rotLon += (state.targetRotLon - state.rotLon) * alpha;
-    state.rotLat += (state.targetRotLat - state.rotLat) * alpha;
-    state.zoom += (state.targetZoom - state.zoom) * alpha;
+    const dLon = state.targetRotLon - state.rotLon;
+    const dLat = state.targetRotLat - state.rotLat;
+    const dZoom = state.targetZoom - state.zoom;
+    state.rotLon = Math.abs(dLon) < 5e-4 ? state.targetRotLon : (state.rotLon + dLon * alpha);
+    state.rotLat = Math.abs(dLat) < 5e-4 ? state.targetRotLat : (state.rotLat + dLat * alpha);
+    state.zoom = Math.abs(dZoom) < 5e-4 ? state.targetZoom : (state.zoom + dZoom * alpha);
 
     const sidebarOpen = vpW > 820 && elSidebar && !elSidebar.classList.contains('collapsed');
     const isMoving = (state.autoRotate && !state.isDragging) || state.isDragging || state.walkingEras ||
-      Math.abs(state.targetRotLon - state.rotLon) > 1e-4 ||
-      Math.abs(state.targetRotLat - state.rotLat) > 1e-4 ||
-      Math.abs(state.targetZoom - state.zoom) > 1e-4;
+      Math.abs(state.targetRotLon - state.rotLon) > 5e-4 ||
+      Math.abs(state.targetRotLat - state.rotLat) > 5e-4 ||
+      Math.abs(state.targetZoom - state.zoom) > 5e-4;
 
     const sig = [
       state.rotLon.toFixed(5), state.rotLat.toFixed(5), state.zoom.toFixed(4),
@@ -1660,7 +1875,7 @@
       state.detailMuseumFilter || '', state.searchQuery,
       state.hoveredArtifact ? state.hoveredArtifact.globalId : -1,
       state.selectedArtifact ? state.selectedArtifact.globalId : -1,
-      state.lang, vpW, vpH, sidebarOpen, loadedAtlasCount
+      state.lang, vpW, vpH, sidebarOpen, caAtlasSigBump, isMoving ? 1 : 0
     ].join('|');
 
     if (!isMoving && sig === caLastSig) {
@@ -1669,10 +1884,6 @@
     }
     caLastSig = sig;
 
-    gCtx.save();
-    gCtx.scale(dpr, dpr);
-    gCtx.clearRect(0, 0, vpW, vpH);
-
     const cx = sidebarOpen ? (vpW * 0.50 + 147) : (vpW * 0.50);
     const cy = vpH * 0.50;
     const availW = sidebarOpen ? Math.max(320, vpW - 294) : vpW;
@@ -1680,80 +1891,24 @@
     const cosLon = Math.cos(state.rotLon), sinLon = Math.sin(state.rotLon);
     const cosLat = Math.cos(state.rotLat), sinLat = Math.sin(state.rotLat);
 
-    if (state.showAurora) {
-      const aur = gCtx.createRadialGradient(cx + baseR * 0.14, cy - baseR * 0.04, baseR * 0.88, cx + baseR * 0.08, cy, baseR * 1.14);
-      aur.addColorStop(0, 'rgba(235, 215, 175, 0)');
-      aur.addColorStop(0.45, 'rgba(209, 166, 92, 0.20)');
-      aur.addColorStop(0.72, 'rgba(124, 188, 172, 0.16)');
-      aur.addColorStop(1, 'rgba(245, 236, 220, 0)');
-      gCtx.fillStyle = aur;
-      gCtx.beginPath();
-      gCtx.arc(cx, cy, baseR * 1.15, 0, Math.PI * 2);
-      gCtx.fill();
+    const fastMotion = isMoving;
+    const bKey = state.rotLon.toFixed(4) + '|' + state.rotLat.toFixed(4) + '|' + state.zoom.toFixed(3) + '|' +
+      vpW + '|' + vpH + '|' + sidebarOpen + '|' + state.showAurora + '|' + state.borderArcs3D.length + '|' + (fastMotion ? 1 : 0);
+    if (bKey !== caBaseKey) {
+      renderCaBaseToCache(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, fastMotion);
+      caBaseKey = bKey;
     }
 
     gCtx.save();
-    gCtx.shadowColor = 'rgba(92, 68, 34, 0.16)';
-    gCtx.shadowBlur = 36;
-    gCtx.shadowOffsetY = 12;
-    const sph = gCtx.createRadialGradient(cx - baseR * 0.26, cy - baseR * 0.28, baseR * 0.08, cx, cy, baseR);
-    sph.addColorStop(0, '#faf3e4');
-    sph.addColorStop(0.62, '#efe2c7');
-    sph.addColorStop(0.92, '#e2cfa9');
-    sph.addColorStop(1, '#d3bc92');
-    gCtx.fillStyle = sph;
-    gCtx.beginPath();
-    gCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    gCtx.fill();
-    gCtx.restore();
-
-    gCtx.save();
-    gCtx.beginPath();
-    gCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    gCtx.clip();
-
-    gCtx.fillStyle = 'rgba(166, 139, 100, 0.40)';
-    const dotSz = Math.max(1.1, 1.45 * state.zoom);
-    for (let i = 0; i < state.landDots3D.length; i++) {
-      const d = state.landDots3D[i];
-      const r = rotateVec(d[0], d[1], d[2], cosLon, sinLon, cosLat, sinLat);
-      if (r[2] > 0.03) {
-        gCtx.fillRect(cx + r[0] * baseR - dotSz * 0.5, cy - r[1] * baseR - dotSz * 0.5, dotSz, dotSz);
-      }
-    }
-
-    gCtx.strokeStyle = 'rgba(155, 128, 89, 0.56)';
-    gCtx.lineWidth = 0.9;
-    for (let i = 0; i < state.borderArcs3D.length; i++) {
-      const arc = state.borderArcs3D[i];
-      gCtx.beginPath();
-      let st = false;
-      for (let j = 0; j < arc.length; j++) {
-        const p = arc[j];
-        const r = rotateVec(p[0], p[1], p[2], cosLon, sinLon, cosLat, sinLat);
-        if (r[2] > 0.01) {
-          const sx = cx + r[0] * baseR;
-          const sy = cy - r[1] * baseR;
-          if (!st) { gCtx.moveTo(sx, sy); st = true; }
-          else gCtx.lineTo(sx, sy);
-        } else {
-          st = false;
-        }
-      }
-      gCtx.stroke();
-    }
-    gCtx.restore();
-
-    gCtx.strokeStyle = 'rgba(165, 138, 98, 0.55)';
-    gCtx.lineWidth = 1.1;
-    gCtx.beginPath();
-    gCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    gCtx.stroke();
+    gCtx.setTransform(1, 0, 0, 1, 0, 0);
+    gCtx.clearRect(0, 0, elGlobeCanvas.width, elGlobeCanvas.height);
+    if (caBaseCanvas) gCtx.drawImage(caBaseCanvas, 0, 0);
+    gCtx.scale(dpr, dpr);
 
     // Adaptive stride keeps 60 FPS even when all 45,008 items are active; curated plates ALWAYS render
     visibleCards.length = 0;
     const src = state.filteredArtifacts;
-    const budget = state.isDragging ? 3400 : 5600;
+    const budget = state.isDragging ? 2600 : 4800;
     const stride = src.length > budget ? Math.ceil(src.length / budget) : 1;
     const baseCardPx = Math.max(5.5, Math.min(26, baseR * 0.037 * state.cardScale));
 
@@ -1762,8 +1917,13 @@
       if (!art.isCurated && stride > 1 && (i % stride !== 0) && (!state.selectedCountryEn || art.countryEn !== state.selectedCountryEn)) {
         continue;
       }
-      const rv = rotateVec(art.homeVec[0], art.homeVec[1], art.homeVec[2], cosLon, sinLon, cosLat, sinLat);
-      if (rv[2] < -0.02) continue;
+      const hv = art.homeVec;
+      const hx = hv[0], hy = hv[1], hz = hv[2];
+      const rx = hx * cosLon + hz * sinLon;
+      const z1 = -hx * sinLon + hz * cosLon;
+      const rz = hy * sinLat + z1 * cosLat;
+      if (rz < -0.02) continue;
+      const ry = hy * cosLat - z1 * sinLat;
 
       const dimmed = Boolean(
         (state.selectedCountryEn && art.countryEn !== state.selectedCountryEn) ||
@@ -1772,9 +1932,9 @@
 
       visibleCards.push({
         art,
-        sx: cx + rv[0] * baseR,
-        sy: cy - rv[1] * baseR,
-        rz: rv[2],
+        sx: cx + rx * baseR,
+        sy: cy - ry * baseR,
+        rz: rz,
         dimmed
       });
     }
@@ -1782,68 +1942,121 @@
     visibleCards.sort((a, b) => a.rz - b.rz);
 
     const mode = state.displayMode;
-    for (let i = 0; i < visibleCards.length; i++) {
-      const c = visibleCards[i];
-      const art = c.art;
-      const atl = atlasCache[art.museumId];
-      const gAtlas = atl ? atl.globeSpriteAtlas : null;
-      const aCols = atl ? atl.cols : 8;
-      const isHi = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
-      const pScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
-      const sz = baseCardPx * pScale * (isHi ? 1.5 : (art.isCurated ? 1.18 : 1.0));
-      gCtx.globalAlpha = c.dimmed ? 0.16 : Math.min(1, 0.36 + c.rz * 1.15);
-
-      if (mode === 'particles' || !gAtlas) {
-        const pRad = Math.max(1.8, sz * 0.28);
-        gCtx.fillStyle = art.isCurated ? '#d89b32' : '#587b82';
-        gCtx.beginPath();
-        gCtx.arc(c.sx, c.sy, pRad, 0, Math.PI * 2);
-        gCtx.fill();
-        c.hitX = c.sx;
-        c.hitY = c.sy;
-        c.hitR = Math.max(5, pRad + 3);
-        continue;
-      }
-
-      const sxA = (art.sprite % aCols) * GLOBE_MIP_SIZE;
-      const syA = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
-
-      if (mode === 'flat') {
-        const eRot = rotateVec(art.east[0], art.east[1], art.east[2], cosLon, sinLon, cosLat, sinLat);
-        const nRot = rotateVec(art.north[0], art.north[1], art.north[2], cosLon, sinLon, cosLat, sinLat);
-        const half = sz * 0.48;
-        gCtx.save();
-        gCtx.transform(eRot[0] * half, -eRot[1] * half, -nRot[0] * half, nRot[1] * half, c.sx, c.sy);
-        gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, -1, -1, 2, 2);
-        gCtx.restore();
-        c.hitX = c.sx;
-        c.hitY = c.sy;
-        c.hitR = sz * 0.55;
-      } else {
+    if (fastMotion && mode === 'standing') {
+      const palette = ['#8f6a3e', '#5d4732', '#b0884a', '#486269'];
+      const bins = [[], [], [], []];
+      const curatedDraw = [];
+      for (let i = 0; i < visibleCards.length; i++) {
+        const c = visibleCards[i];
+        const art = c.art;
+        const isHi = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
+        const pScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
+        const sz = baseCardPx * pScale * (isHi ? 1.5 : (art.isCurated ? 1.18 : 1.0));
         const cardW = sz;
         const cardH = sz * 1.06;
         const dx = c.sx - cardW * 0.5;
         const dy = c.sy - cardH;
-        gCtx.fillStyle = 'rgba(48, 34, 16, 0.22)';
-        if (cardW < 15) {
-          gCtx.fillRect(dx + 1, c.sy - 1, Math.max(2, cardW - 2), 2);
-        } else {
-          gCtx.beginPath();
-          gCtx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
-          gCtx.fill();
-        }
-        gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, dx, dy, cardW, cardH);
-        if (isHi || art.isCurated) {
-          gCtx.strokeStyle = isHi ? '#ffe08c' : 'rgba(232, 188, 98, 0.75)';
-          gCtx.lineWidth = isHi ? 1.8 : 1.0;
-          gCtx.strokeRect(dx - 0.5, dy - 0.5, cardW + 1, cardH + 1);
-        }
         c.hitX = c.sx;
         c.hitY = c.sy - cardH * 0.5;
         c.hitR = cardW * 0.62;
+        if (art.isCurated || isHi) {
+          curatedDraw.push(c, dx, dy, cardW, cardH, isHi);
+        } else if (!c.dimmed) {
+          bins[art.sprite & 3].push(dx, dy, cardW, cardH);
+        }
       }
+      gCtx.globalAlpha = 0.88;
+      for (let b = 0; b < 4; b++) {
+        const arr = bins[b];
+        if (!arr.length) continue;
+        gCtx.fillStyle = palette[b];
+        for (let k = 0; k < arr.length; k += 4) {
+          gCtx.fillRect(arr[k], arr[k + 1], arr[k + 2], arr[k + 3]);
+        }
+      }
+      gCtx.globalAlpha = 1;
+      for (let k = 0; k < curatedDraw.length; k += 6) {
+        const c = curatedDraw[k];
+        const art = c.art;
+        const dx = curatedDraw[k + 1], dy = curatedDraw[k + 2];
+        const cardW = curatedDraw[k + 3], cardH = curatedDraw[k + 4];
+        const isHi = curatedDraw[k + 5];
+        const atl = atlasCache[art.museumId];
+        const gAtlas = atl ? atl.globeSpriteAtlas : null;
+        if (!gAtlas) continue;
+        const aCols = atl.cols || 8;
+        const sxA = (art.sprite % aCols) * GLOBE_MIP_SIZE;
+        const syA = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
+        gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, dx, dy, cardW, cardH);
+        gCtx.strokeStyle = isHi ? '#ffe08c' : 'rgba(232, 188, 98, 0.75)';
+        gCtx.lineWidth = isHi ? 1.8 : 1.0;
+        gCtx.strokeRect(dx - 0.5, dy - 0.5, cardW + 1, cardH + 1);
+      }
+    } else {
+      let curAlpha = -1;
+      gCtx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+      for (let i = 0; i < visibleCards.length; i++) {
+        const c = visibleCards[i];
+        const art = c.art;
+        const atl = atlasCache[art.museumId];
+        const gAtlas = atl ? atl.globeSpriteAtlas : null;
+        const aCols = atl ? atl.cols : 8;
+        const isHi = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
+        const pScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
+        const sz = baseCardPx * pScale * (isHi ? 1.5 : (art.isCurated ? 1.18 : 1.0));
+        const nextAlpha = c.dimmed ? 0.16 : (c.rz > 0.56 ? 1.0 : (c.rz > 0.28 ? 0.8 : 0.5));
+        if (nextAlpha !== curAlpha) {
+          gCtx.globalAlpha = nextAlpha;
+          curAlpha = nextAlpha;
+        }
+
+        if (mode === 'particles' || !gAtlas) {
+          const pRad = Math.max(1.8, sz * 0.28);
+          gCtx.fillStyle = art.isCurated ? '#d89b32' : '#587b82';
+          gCtx.beginPath();
+          gCtx.arc(c.sx, c.sy, pRad, 0, Math.PI * 2);
+          gCtx.fill();
+          gCtx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+          c.hitX = c.sx;
+          c.hitY = c.sy;
+          c.hitR = Math.max(5, pRad + 3);
+          continue;
+        }
+
+        const sxA = (art.sprite % aCols) * GLOBE_MIP_SIZE;
+        const syA = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
+
+        if (mode === 'flat') {
+          const eRot = rotateVec(art.east[0], art.east[1], art.east[2], cosLon, sinLon, cosLat, sinLat);
+          const nRot = rotateVec(art.north[0], art.north[1], art.north[2], cosLon, sinLon, cosLat, sinLat);
+          const half = sz * 0.48;
+          gCtx.save();
+          gCtx.transform(eRot[0] * half, -eRot[1] * half, -nRot[0] * half, nRot[1] * half, c.sx, c.sy);
+          gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, -1, -1, 2, 2);
+          gCtx.restore();
+          c.hitX = c.sx;
+          c.hitY = c.sy;
+          c.hitR = sz * 0.55;
+        } else {
+          const cardW = sz;
+          const cardH = sz * 1.06;
+          const dx = c.sx - cardW * 0.5;
+          const dy = c.sy - cardH;
+          gCtx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+          gCtx.fillRect(dx + 1, c.sy - 1, Math.max(2, cardW - 2), 2.2);
+          gCtx.drawImage(gAtlas, sxA, syA, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, dx, dy, cardW, cardH);
+          if (isHi || art.isCurated) {
+            gCtx.strokeStyle = isHi ? '#ffe08c' : 'rgba(232, 188, 98, 0.75)';
+            gCtx.lineWidth = isHi ? 1.8 : 1.0;
+            gCtx.strokeRect(dx - 0.5, dy - 0.5, cardW + 1, cardH + 1);
+          }
+          c.hitX = c.sx;
+          c.hitY = c.sy - cardH * 0.5;
+          c.hitR = cardW * 0.62;
+        }
+      }
+      gCtx.globalAlpha = 1;
     }
-    gCtx.globalAlpha = 1;
 
     // Non-overlapping Creation Date callouts for front-hemisphere curated masterpieces
     if (state.showLabels) {
@@ -2267,6 +2480,10 @@
         ensureCaRaf();
       }
     });
+
+    window.addEventListener('scroll', () => {
+      caScrollPauseUntil = performance.now() + 160;
+    }, { passive: true });
 
     ensureCaRaf();
   }

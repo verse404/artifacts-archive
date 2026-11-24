@@ -452,9 +452,7 @@ html[lang="zh-CN"] .st-chap-title {
   left: 50%;
   transform: translateX(-50%);
   z-index: 20;
-  background: rgba(252, 248, 240, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(252, 248, 240, 0.97);
   border: 1px solid var(--border-sepia);
   border-radius: 14px;
   padding: 8px 18px;
@@ -543,9 +541,7 @@ html[lang="zh-CN"] .st-hud-title {
   left: 50%;
   transform: translateX(-50%);
   z-index: 22;
-  background: rgba(252, 248, 239, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(252, 248, 239, 0.97);
   border: 1px solid var(--border-sepia);
   border-radius: 14px;
   padding: 7px 12px;
@@ -578,8 +574,6 @@ html[lang="zh-CN"] .st-hud-title {
   inset: 0;
   z-index: 140;
   background: rgba(18, 13, 8, 0.84);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   display: none;
   align-items: center;
   justify-content: center;

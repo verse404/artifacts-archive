@@ -73,9 +73,7 @@
   position: fixed;
   inset: 0;
   z-index: 220;
-  background: rgba(24, 17, 10, 0.68);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(24, 17, 10, 0.78);
   display: none;
   align-items: center;
   justify-content: center;

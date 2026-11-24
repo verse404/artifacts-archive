@@ -1360,6 +1360,11 @@
     });
   }
 
+  let quizBaseCanvas = null;
+  let quizBaseCtx = null;
+  let quizBaseKey = '';
+  let quizLastFrameSig = '';
+
   function renderQuizGlobeLoop() {
     if (!quizState.rafActive || !quizCanvasEl || !studioBackdrop || !studioBackdrop.classList.contains('open')) {
       quizState.rafActive = false;
@@ -1368,19 +1373,32 @@
     const rect = quizCanvasEl.getBoundingClientRect();
     const w = Math.max(260, rect.width);
     const h = Math.max(260, rect.height);
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (quizCanvasEl.width !== Math.round(w * dpr) || quizCanvasEl.height !== Math.round(h * dpr)) {
-      quizCanvasEl.width = Math.round(w * dpr);
-      quizCanvasEl.height = Math.round(h * dpr);
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    const pw = Math.round(w * dpr);
+    const ph = Math.round(h * dpr);
+    if (quizCanvasEl.width !== pw || quizCanvasEl.height !== ph) {
+      quizCanvasEl.width = pw;
+      quizCanvasEl.height = ph;
+      quizBaseKey = '';
+      quizLastFrameSig = '';
     }
 
-    quizState.rotLon += (quizState.targetRotLon - quizState.rotLon) * 0.14;
-    quizState.rotLat += (quizState.targetRotLat - quizState.rotLat) * 0.14;
+    const dLon = quizState.targetRotLon - quizState.rotLon;
+    const dLat = quizState.targetRotLat - quizState.rotLat;
+    if (Math.abs(dLon) > 2e-4) quizState.rotLon += dLon * 0.14;
+    else quizState.rotLon = quizState.targetRotLon;
+    if (Math.abs(dLat) > 2e-4) quizState.rotLat += dLat * 0.14;
+    else quizState.rotLat = quizState.targetRotLat;
 
-    const ctx = quizCanvasEl.getContext('2d');
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
+    const frameSig = quizState.rotLon.toFixed(4) + '|' + quizState.rotLat.toFixed(4) + '|' +
+      pw + '|' + ph + '|' + quizState.borderArcs3D.length + '|' +
+      String(quizState.guessLon) + '|' + String(quizState.guessLat) + '|' +
+      quizState.revealed + '|' + quizState.roundIdx + '|' + getLang();
+    if (frameSig === quizLastFrameSig) {
+      requestAnimationFrame(renderQuizGlobeLoop);
+      return;
+    }
+    quizLastFrameSig = frameSig;
 
     const cx = w * 0.5;
     const cy = h * 0.52;
@@ -1388,41 +1406,70 @@
     const cosLon = Math.cos(quizState.rotLon), sinLon = Math.sin(quizState.rotLon);
     const cosLat = Math.cos(quizState.rotLat), sinLat = Math.sin(quizState.rotLat);
 
-    // Sunlit vellum sphere
-    const sph = ctx.createRadialGradient(cx - baseR * 0.25, cy - baseR * 0.25, baseR * 0.08, cx, cy, baseR);
-    sph.addColorStop(0, '#faf3e4');
-    sph.addColorStop(0.65, '#efe2c7');
-    sph.addColorStop(1, '#d4bd93');
-    ctx.fillStyle = sph;
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Borders
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.strokeStyle = 'rgba(148, 120, 82, 0.62)';
-    ctx.lineWidth = 0.95;
-    for (let i = 0; i < quizState.borderArcs3D.length; i++) {
-      const arc = quizState.borderArcs3D[i];
-      ctx.beginPath();
-      let st = false;
-      for (let j = 0; j < arc.length; j++) {
-        const p = arc[j];
-        const r = rotateVec(p[0], p[1], p[2], cosLon, sinLon, cosLat, sinLat);
-        if (r[2] > 0.01) {
-          const sx = cx + r[0] * baseR;
-          const sy = cy - r[1] * baseR;
-          if (!st) { ctx.moveTo(sx, sy); st = true; } else ctx.lineTo(sx, sy);
-        } else {
-          st = false;
-        }
+    const bKey = quizState.rotLon.toFixed(4) + '|' + quizState.rotLat.toFixed(4) + '|' + pw + '|' + ph + '|' + quizState.borderArcs3D.length;
+    if (bKey !== quizBaseKey) {
+      if (!quizBaseCanvas) {
+        quizBaseCanvas = document.createElement('canvas');
+        quizBaseCtx = quizBaseCanvas.getContext('2d');
       }
-      ctx.stroke();
+      if (quizBaseCanvas.width !== pw || quizBaseCanvas.height !== ph) {
+        quizBaseCanvas.width = pw;
+        quizBaseCanvas.height = ph;
+      }
+      const bCtx = quizBaseCtx;
+      bCtx.save();
+      bCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bCtx.clearRect(0, 0, w, h);
+
+      // Sunlit vellum sphere
+      const sph = bCtx.createRadialGradient(cx - baseR * 0.25, cy - baseR * 0.25, baseR * 0.08, cx, cy, baseR);
+      sph.addColorStop(0, '#faf3e4');
+      sph.addColorStop(0.65, '#efe2c7');
+      sph.addColorStop(1, '#d4bd93');
+      bCtx.fillStyle = sph;
+      bCtx.beginPath();
+      bCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
+      bCtx.fill();
+
+      // Borders (no circular clip, zero array allocs, screen-space vertex decimation)
+      bCtx.strokeStyle = 'rgba(148, 120, 82, 0.62)';
+      bCtx.lineWidth = 0.95;
+      const arcs = quizState.borderArcs3D;
+      for (let i = 0; i < arcs.length; i++) {
+        const arc = arcs[i];
+        bCtx.beginPath();
+        let st = false;
+        let lx = -9999, ly = -9999;
+        for (let j = 0; j < arc.length; j++) {
+          const p = arc[j];
+          const px = p[0], py = p[1], pz = p[2];
+          const x1 = px * cosLon + pz * sinLon;
+          const z1 = -px * sinLon + pz * cosLon;
+          const z2 = py * sinLat + z1 * cosLat;
+          if (z2 > 0.015) {
+            const y2 = py * cosLat - z1 * sinLat;
+            const sx = cx + x1 * baseR;
+            const sy = cy - y2 * baseR;
+            if (!st) { bCtx.moveTo(sx, sy); lx = sx; ly = sy; st = true; }
+            else if (Math.abs(sx - lx) + Math.abs(sy - ly) >= 1.6 || j === arc.length - 1) {
+              bCtx.lineTo(sx, sy); lx = sx; ly = sy;
+            }
+          } else {
+            st = false;
+          }
+        }
+        bCtx.stroke();
+      }
+      bCtx.restore();
+      quizBaseKey = bKey;
     }
-    ctx.restore();
+
+    const ctx = quizCanvasEl.getContext('2d');
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pw, ph);
+    if (quizBaseCanvas) ctx.drawImage(quizBaseCanvas, 0, 0);
+    ctx.scale(dpr, dpr);
 
     const drawPin = (lon, lat, color, label) => {
       const v = lonLatToVec3(lon, lat);

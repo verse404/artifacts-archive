@@ -473,7 +473,7 @@
     globe: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z'
   };
 
-  const GLOBE_MIP_SIZE = 96;
+  const GLOBE_MIP_SIZE = 64;
   const DEG2RAD = Math.PI / 180;
   const atlasCache = {};
   const atlasPromises = {};
@@ -519,30 +519,61 @@
       rows: m.atlasRows,
       tileSize: m.tileSize,
       spriteAtlas: null,
-      globeSpriteAtlas: gCanvas
+      globeSpriteAtlas: gCanvas,
+      spriteColors: null
     };
 
     atlasPromises[m.id] = new Promise((resolve) => {
       const img = new Image();
       img.decoding = 'async';
-      img.onload = () => {
-        entry.spriteAtlas = img;
-
-        gCtx.imageSmoothingEnabled = true;
-        gCtx.imageSmoothingQuality = 'high';
-        gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
+      const finishMip = (bmp) => {
+        if (bmp) {
+          gCtx.drawImage(bmp, 0, 0, gCanvas.width, gCanvas.height);
+          if (typeof bmp.close === 'function') bmp.close();
+        } else {
+          gCtx.imageSmoothingEnabled = true;
+          gCtx.imageSmoothingQuality = 'medium';
+          gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
+        }
+        // Pre-sample authentic dominant pigment color per sprite tile (<0.1ms) for 60 FPS motion LOD
+        try {
+          const pc = document.createElement('canvas');
+          pc.width = m.atlasCols;
+          pc.height = m.atlasRows;
+          const pCtx = pc.getContext('2d');
+          pCtx.drawImage(gCanvas, 0, 0, m.atlasCols, m.atlasRows);
+          const pd = pCtx.getImageData(0, 0, m.atlasCols, m.atlasRows).data;
+          const colors = new Array(m.atlasCols * m.atlasRows);
+          for (let idx = 0; idx < colors.length; idx++) {
+            const o = idx * 4;
+            colors[idx] = 'rgb(' + pd[o] + ',' + pd[o + 1] + ',' + pd[o + 2] + ')';
+          }
+          entry.spriteColors = colors;
+        } catch (_) {}
         gCtx.strokeStyle = 'rgba(255, 248, 234, 0.24)';
-        gCtx.lineWidth = 1.4;
+        gCtx.lineWidth = 1.2;
         for (let idx = 0; idx < m.atlasCols * m.atlasRows; idx++) {
           const gx = (idx % m.atlasCols) * GLOBE_MIP_SIZE;
           const gy = Math.floor(idx / m.atlasCols) * GLOBE_MIP_SIZE;
-          gCtx.strokeRect(gx + 0.7, gy + 0.7, GLOBE_MIP_SIZE - 1.4, GLOBE_MIP_SIZE - 1.4);
+          gCtx.strokeRect(gx + 0.6, gy + 0.6, GLOBE_MIP_SIZE - 1.2, GLOBE_MIP_SIZE - 1.2);
         }
         atlasCache[m.id] = entry;
         loadedAtlasCount++;
         if (makeActive || state.museumId === m.id) activeAtlas = entry;
         repaintDeferredCanvases(m.id);
         resolve(entry);
+      };
+      img.onload = () => {
+        entry.spriteAtlas = img;
+        if (typeof window.createImageBitmap === 'function') {
+          window.createImageBitmap(img, {
+            resizeWidth: gCanvas.width,
+            resizeHeight: gCanvas.height,
+            resizeQuality: 'medium'
+          }).then(finishMip).catch(() => finishMip(null));
+        } else {
+          finishMip(null);
+        }
       };
       img.onerror = () => {
         atlasCache[m.id] = entry;
@@ -832,14 +863,29 @@
       }
     }
 
-    const allRingsList = Array.from(polyMap.values());
+    const allRingsList = Array.from(polyMap.values()).map((rings) => {
+      let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+      for (let r = 0; r < rings.length; r++) {
+        const ring = rings[r];
+        for (let p = 0; p < ring.length; p++) {
+          const ln = ring[p][0], lt = ring[p][1];
+          if (ln < minLon) minLon = ln;
+          if (ln > maxLon) maxLon = ln;
+          if (lt < minLat) minLat = lt;
+          if (lt > maxLat) maxLat = lt;
+        }
+      }
+      return { rings, minLon, maxLon, minLat, maxLat };
+    });
     const landDots = [];
-    for (let lat = -58; lat <= 74; lat += 2.4) {
-      const lonStep = 2.4 / Math.max(0.28, Math.cos(lat * DEG2RAD));
+    for (let lat = -58; lat <= 74; lat += 2.6) {
+      const lonStep = 2.6 / Math.max(0.28, Math.cos(lat * DEG2RAD));
       for (let lon = -178; lon <= 178; lon += lonStep) {
         let onLand = false;
         for (let c = 0; c < allRingsList.length; c++) {
-          if (pointInMultiPolygon(lon, lat, allRingsList[c])) {
+          const box = allRingsList[c];
+          if (lat < box.minLat || lat > box.maxLat || lon < box.minLon || lon > box.maxLon) continue;
+          if (pointInMultiPolygon(lon, lat, box.rings)) {
             onLand = true;
             break;
           }
@@ -3171,22 +3217,45 @@
   }
 
   let galleryPlateObserver = null;
+  let galleryPaintQueue = [];
+  let galleryPaintScheduled = false;
+
+  function pumpGalleryPaintQueue() {
+    galleryPaintScheduled = false;
+    let budget = 2;
+    while (budget > 0 && galleryPaintQueue.length > 0) {
+      const job = galleryPaintQueue.shift();
+      if (!job || !job.cnv || !job.cnv.isConnected) continue;
+      if (job.cnv.dataset.rendered === '1') continue;
+      job.cnv.dataset.rendered = '1';
+      job.cnv.width = 320;
+      job.cnv.height = 240;
+      if (atlasCache[job.artMid]) {
+        drawCoverPlateToCanvas(job.cnv, job.spriteIdx, job.artMid);
+      } else {
+        loadMuseumAtlas(job.artMid, false).then(() => {
+          drawCoverPlateToCanvas(job.cnv, job.spriteIdx, job.artMid);
+        });
+      }
+      budget--;
+    }
+    if (galleryPaintQueue.length > 0) {
+      galleryPaintScheduled = true;
+      requestAnimationFrame(pumpGalleryPaintQueue);
+    }
+  }
 
   function renderGalleryPlateNow(cnv, spriteIdx, artMid) {
     if (cnv.dataset.rendered === '1') return;
-    cnv.dataset.rendered = '1';
-    cnv.width = 480;
-    cnv.height = 360;
-    if (atlasCache[artMid]) {
-      drawCoverPlateToCanvas(cnv, spriteIdx, artMid);
-    } else {
-      loadMuseumAtlas(artMid, false).then(() => {
-        drawCoverPlateToCanvas(cnv, spriteIdx, artMid);
-      });
+    galleryPaintQueue.push({ cnv, spriteIdx, artMid });
+    if (!galleryPaintScheduled) {
+      galleryPaintScheduled = true;
+      requestAnimationFrame(pumpGalleryPaintQueue);
     }
   }
 
   function renderMasterpiecesGallery() {
+    galleryPaintQueue.length = 0;
     if (galleryPlateObserver) {
       galleryPlateObserver.disconnect();
       galleryPlateObserver = null;
@@ -3204,7 +3273,7 @@
             target.dataset.mid || state.museumId
           );
         }
-      }, { rootMargin: '700px 0px' });
+      }, { rootMargin: '320px 0px' });
     }
     elMasterpiecesGrid.replaceChildren();
     const frag = document.createDocumentFragment();
@@ -3606,13 +3675,22 @@
     ctx.stroke();
   }
 
+  let mainBaseCanvas = null;
+  let mainBaseCtx = null;
+  let mainBaseKey = '';
+  let mainScrollPauseUntil = 0;
+  let lastFlightBannerText = '';
+
   function resizeCanvas() {
     const rect = elGlobeSection.getBoundingClientRect();
     vpW = Math.max(320, Math.round(rect.width));
     vpH = Math.max(420, Math.round(rect.height));
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const maxDpr = vpW > 1000 ? 1.15 : 1.35;
+    dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     canvas.width = Math.round(vpW * dpr);
     canvas.height = Math.round(vpH * dpr);
+    mainBaseKey = '';
+    mainLastSig = '';
   }
 
   function rotateVec(vx, vy, vz, cosLon, sinLon, cosLat, sinLat) {
@@ -3678,11 +3756,159 @@
     }
   }
 
+  function drawMainGlobeBase(bCtx, cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, fastMotion) {
+    if (state.showAurora) {
+      const aurGrad = bCtx.createRadialGradient(cx + baseR * 0.16, cy - baseR * 0.04, baseR * 0.88, cx + baseR * 0.1, cy, baseR * 1.13);
+      aurGrad.addColorStop(0, 'rgba(235, 215, 175, 0)');
+      aurGrad.addColorStop(0.45, 'rgba(124, 198, 178, 0.22)');
+      aurGrad.addColorStop(0.68, 'rgba(182, 146, 214, 0.18)');
+      aurGrad.addColorStop(0.86, 'rgba(224, 168, 134, 0.15)');
+      aurGrad.addColorStop(1, 'rgba(245, 236, 220, 0)');
+      bCtx.fillStyle = aurGrad;
+      bCtx.beginPath();
+      bCtx.arc(cx, cy, baseR * 1.15, 0, Math.PI * 2);
+      bCtx.fill();
+    }
+
+    // Soft radial drop-shadow (eliminates slow 76px GPU/Skia shadowBlur Gaussian pass!)
+    const shGrad = bCtx.createRadialGradient(cx, cy + 12, baseR * 0.88, cx, cy + 12, baseR * 1.11);
+    shGrad.addColorStop(0, 'rgba(92, 68, 34, 0.16)');
+    shGrad.addColorStop(0.55, 'rgba(92, 68, 34, 0.08)');
+    shGrad.addColorStop(1, 'rgba(92, 68, 34, 0)');
+    bCtx.fillStyle = shGrad;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy + 12, baseR * 1.11, 0, Math.PI * 2);
+    bCtx.fill();
+
+    const sphereGrad = bCtx.createRadialGradient(cx - baseR * 0.26, cy - baseR * 0.28, baseR * 0.08, cx, cy, baseR);
+    sphereGrad.addColorStop(0, '#faf3e4');
+    sphereGrad.addColorStop(0.62, '#efe2c7');
+    sphereGrad.addColorStop(0.92, '#e2cfa9');
+    sphereGrad.addColorStop(1, '#d3bc92');
+    bCtx.fillStyle = sphereGrad;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
+    bCtx.fill();
+
+    // Graticule (front hemisphere z > 0.01 is mathematically inside sphere — no slow circular clip()!)
+    bCtx.strokeStyle = 'rgba(170, 145, 108, 0.16)';
+    bCtx.lineWidth = 0.7;
+    for (let lat = -60; lat <= 60; lat += 30) {
+      const phi = lat * DEG2RAD;
+      const sinP = Math.sin(phi), cosP = Math.cos(phi);
+      bCtx.beginPath();
+      let started = false;
+      for (let lon = -180; lon <= 180; lon += 10) {
+        const lam = lon * DEG2RAD;
+        const vx = cosP * Math.sin(lam), vy = sinP, vz = cosP * Math.cos(lam);
+        const x1 = vx * cosLon + vz * sinLon;
+        const z1 = -vx * sinLon + vz * cosLon;
+        const z2 = vy * sinLat + z1 * cosLat;
+        if (z2 > 0.015) {
+          const y2 = vy * cosLat - z1 * sinLat;
+          const sx = cx + x1 * baseR;
+          const sy = cy - y2 * baseR;
+          if (!started) { bCtx.moveTo(sx, sy); started = true; }
+          else bCtx.lineTo(sx, sy);
+        } else {
+          started = false;
+        }
+      }
+      bCtx.stroke();
+    }
+
+    bCtx.fillStyle = 'rgba(166, 139, 100, 0.42)';
+    const dots = state.landDots3D;
+    const dotSize = Math.max(1.1, 1.5 * state.zoom);
+    const halfDot = dotSize * 0.5;
+    const dotStep = fastMotion ? 3 : 1;
+    for (let i = 0; i < dots.length; i += dotStep) {
+      const d = dots[i];
+      const dx = d[0], dy = d[1], dz = d[2];
+      const x1 = dx * cosLon + dz * sinLon;
+      const z1 = -dx * sinLon + dz * cosLon;
+      const z2 = dy * sinLat + z1 * cosLat;
+      if (z2 > 0.03) {
+        const y2 = dy * cosLat - z1 * sinLat;
+        bCtx.fillRect(cx + x1 * baseR - halfDot, cy - y2 * baseR - halfDot, dotSize, dotSize);
+      }
+    }
+
+    bCtx.strokeStyle = 'rgba(155, 128, 89, 0.58)';
+    bCtx.lineWidth = 0.9;
+    const arcs = state.borderArcs3D;
+    const minSegPx = fastMotion ? 3.8 : 1.6;
+    const chunkMax = 36;
+    let chunkCount = 0;
+    bCtx.beginPath();
+    for (let i = 0; i < arcs.length; i++) {
+      const arc = arcs[i];
+      if (fastMotion && arc.length < 4) continue;
+      let started = false;
+      let lx = -9999, ly = -9999;
+      for (let j = 0; j < arc.length; j++) {
+        const p = arc[j];
+        const px = p[0], py = p[1], pz = p[2];
+        const x1 = px * cosLon + pz * sinLon;
+        const z1 = -px * sinLon + pz * cosLon;
+        const z2 = py * sinLat + z1 * cosLat;
+        if (z2 > 0.015) {
+          const y2 = py * cosLat - z1 * sinLat;
+          const sx = cx + x1 * baseR;
+          const sy = cy - y2 * baseR;
+          if (!started) { bCtx.moveTo(sx, sy); lx = sx; ly = sy; started = true; }
+          else if (Math.abs(sx - lx) + Math.abs(sy - ly) >= minSegPx || j === arc.length - 1) {
+            bCtx.lineTo(sx, sy); lx = sx; ly = sy;
+          }
+        } else {
+          started = false;
+        }
+      }
+      if (++chunkCount >= chunkMax) {
+        bCtx.stroke();
+        bCtx.beginPath();
+        chunkCount = 0;
+      }
+    }
+    if (chunkCount > 0) bCtx.stroke();
+
+    bCtx.strokeStyle = 'rgba(165, 138, 98, 0.55)';
+    bCtx.lineWidth = 1.1;
+    bCtx.beginPath();
+    bCtx.arc(cx, cy, baseR, 0, Math.PI * 2);
+    bCtx.stroke();
+  }
+
+  function renderMainBaseToCache(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat) {
+    const cw = canvas.width;
+    const ch = canvas.height;
+    if (!mainBaseCanvas) {
+      mainBaseCanvas = document.createElement('canvas');
+      mainBaseCtx = mainBaseCanvas.getContext('2d');
+    }
+    if (mainBaseCanvas.width !== cw || mainBaseCanvas.height !== ch) {
+      mainBaseCanvas.width = cw;
+      mainBaseCanvas.height = ch;
+    }
+    const bCtx = mainBaseCtx;
+    bCtx.save();
+    bCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    bCtx.clearRect(0, 0, vpW, vpH);
+    drawMainGlobeBase(bCtx, cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, false);
+    bCtx.restore();
+  }
+
   function renderFrame(now) {
     mainRafPending = false;
     if (!mainGlobeInViewport || document.hidden) return;
 
     const ts = typeof now === 'number' ? now : performance.now();
+    // Pause non-drag globe repaints during active page scrolling so scroll hits flat 60 FPS
+    if (!state.isDragging && ts < mainScrollPauseUntil) {
+      ensureMainRaf();
+      return;
+    }
+
     const dt = Math.min(0.12, Math.max(0.001, (ts - lastFrameTime) / 1000));
     lastFrameTime = ts;
 
@@ -3690,9 +3916,12 @@
       state.targetRotLon -= 0.18 * dt;
     }
     const camAlpha = 1 - Math.exp(-dt * 6.5);
-    state.rotLon += (state.targetRotLon - state.rotLon) * camAlpha;
-    state.rotLat += (state.targetRotLat - state.rotLat) * camAlpha;
-    state.zoom += (state.targetZoom - state.zoom) * camAlpha;
+    const dLon = state.targetRotLon - state.rotLon;
+    const dLat = state.targetRotLat - state.rotLat;
+    const dZoom = state.targetZoom - state.zoom;
+    state.rotLon = Math.abs(dLon) < 5e-4 ? state.targetRotLon : (state.rotLon + dLon * camAlpha);
+    state.rotLat = Math.abs(dLat) < 5e-4 ? state.targetRotLat : (state.rotLat + dLat * camAlpha);
+    state.zoom = Math.abs(dZoom) < 5e-4 ? state.targetZoom : (state.zoom + dZoom * camAlpha);
 
     if (state.timelinePlaying) {
       const prevYr = Math.round(state.timelineYear);
@@ -3715,18 +3944,19 @@
     if (state.animatingFlight) {
       const nArt = state.artifacts.length;
       state.flightProgress += dt / (state.flightDirection === 'collect' ? 4.2 : 3.4);
+      let bannerTxt = '';
       if (state.globeLens === 'homeland') {
         const entry = getHomelandEntry(state.homelandCountryEn);
         const cName = countryName(entry);
         const nM = state.homelandPins.length || entry.holdings.length;
         if (state.flightDirection === 'collect') {
           const curYear = Math.min(entry.maxAcqYear, Math.round(entry.minAcqYear + Math.min(1, state.flightProgress / 0.88) * Math.max(1, entry.maxAcqYear - entry.minAcqYear)));
-          elFlightBanner.textContent = state.lang === 'zh'
+          bannerTxt = state.lang === 'zh'
             ? (cName + '外流时间轴 · ' + curYear + ' 年（流散至全球 ' + fmtNum(nM) + ' 座博物馆）')
             : (cName + ' Dispersal Timeline · ' + curYear + '  (Radiating to ' + fmtNum(nM) + ' World Museums)');
         } else {
           const pct = Math.min(100, Math.round(state.flightProgress * 100));
-          elFlightBanner.textContent = state.lang === 'zh'
+          bannerTxt = state.lang === 'zh'
             ? (fmtNum(nArt) + ' 件文物正从全球 ' + fmtNum(nM) + ' 座博物馆飞回' + cName + ' · ' + pct + '%')
             : ('Returning ' + fmtNum(nArt) + ' Artifacts from ' + fmtNum(nM) + ' World Museums to ' + cName + ' · ' + pct + '%');
         }
@@ -3736,15 +3966,19 @@
         const nCnt = state.countries.length;
         if (state.flightDirection === 'collect') {
           const curYear = Math.min(m.acqEnd, Math.round(m.acqStart + Math.min(1, state.flightProgress / 0.88) * (m.acqEnd - m.acqStart)));
-          elFlightBanner.textContent = state.lang === 'zh'
+          bannerTxt = state.lang === 'zh'
             ? (mc.shortName + '入藏时间轴 · ' + curYear + ' 年（汇集至' + mc.shortHost + mc.hostCity + '）')
             : (mc.shortName + ' Acquisition Timeline · ' + curYear + '  (Gathering to ' + mc.hostCity + ', ' + mc.shortHost + ')');
         } else {
           const pct = Math.min(100, Math.round(state.flightProgress * 100));
-          elFlightBanner.textContent = state.lang === 'zh'
+          bannerTxt = state.lang === 'zh'
             ? (fmtNum(nArt) + ' 件文物正从' + mc.shortHost + mc.hostCity + '飞回 ' + fmtNum(nCnt) + ' 个故乡 · ' + pct + '%')
             : ('Returning ' + fmtNum(nArt) + ' Artifacts from ' + mc.hostCity + ' (' + mc.shortHost + ') to ' + fmtNum(nCnt) + ' Homelands · ' + pct + '%');
         }
+      }
+      if (bannerTxt !== lastFlightBannerText) {
+        lastFlightBannerText = bannerTxt;
+        elFlightBanner.textContent = bannerTxt;
       }
       if (state.flightProgress >= 1) {
         state.flightProgress = 1;
@@ -3758,10 +3992,11 @@
     }
 
     const sidebarOpen = vpW > 920 && elSidebar && !elSidebar.classList.contains('collapsed');
-    const isMoving = (state.autoRotate && !state.isDragging) || state.isDragging || state.animatingFlight || state.timelinePlaying ||
-      Math.abs(state.targetRotLon - state.rotLon) > 1e-4 ||
-      Math.abs(state.targetRotLat - state.rotLat) > 1e-4 ||
-      Math.abs(state.targetZoom - state.zoom) > 1e-4;
+    const camMoving = (state.autoRotate && !state.isDragging) || state.isDragging ||
+      Math.abs(state.targetRotLon - state.rotLon) > 5e-4 ||
+      Math.abs(state.targetRotLat - state.rotLat) > 5e-4 ||
+      Math.abs(state.targetZoom - state.zoom) > 5e-4;
+    const isMoving = camMoving || state.animatingFlight || state.timelinePlaying;
 
     const sig = [
       state.rotLon.toFixed(5), state.rotLat.toFixed(5), state.zoom.toFixed(4),
@@ -3774,7 +4009,7 @@
       state.hoveredMuseumPin ? state.hoveredMuseumPin.museumId : '',
       state.searchQuery, state.isCollectedInHost, state.flightProgress.toFixed(4),
       state.timelineActive, state.timelineVisible, state.timelineYear.toFixed(2),
-      state.lang, vpW, vpH, sidebarOpen, loadedAtlasCount
+      state.lang, vpW, vpH, sidebarOpen, loadedAtlasCount, isMoving ? 1 : 0
     ].join('|');
 
     if (!isMoving && sig === mainLastSig) {
@@ -3782,10 +4017,6 @@
       return;
     }
     mainLastSig = sig;
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, vpW, vpH);
 
     const cx = sidebarOpen ? (vpW * 0.50 + 147) : (vpW * 0.50);
     const cy = state.timelineVisible ? (vpH * 0.44) : (vpH * 0.48);
@@ -3797,103 +4028,35 @@
     const ringLabelState = { left: [], right: [] };
     visibleMuseumPins.length = 0;
 
+    const fastMotion = isMoving;
+
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
     if (state.ringMode > 0) {
       drawAstrolabeRings(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, false, ringLabelState);
     }
 
-    if (state.showAurora) {
-      const aurGrad = ctx.createRadialGradient(cx + baseR * 0.16, cy - baseR * 0.04, baseR * 0.88, cx + baseR * 0.1, cy, baseR * 1.13);
-      aurGrad.addColorStop(0, 'rgba(235, 215, 175, 0)');
-      aurGrad.addColorStop(0.45, 'rgba(124, 198, 178, 0.22)');
-      aurGrad.addColorStop(0.68, 'rgba(182, 146, 214, 0.18)');
-      aurGrad.addColorStop(0.86, 'rgba(224, 168, 134, 0.15)');
-      aurGrad.addColorStop(1, 'rgba(245, 236, 220, 0)');
-      ctx.fillStyle = aurGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, baseR * 1.15, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.save();
-    ctx.shadowColor = 'rgba(92, 68, 34, 0.16)';
-    ctx.shadowBlur = 38;
-    ctx.shadowOffsetY = 12;
-    const sphereGrad = ctx.createRadialGradient(cx - baseR * 0.26, cy - baseR * 0.28, baseR * 0.08, cx, cy, baseR);
-    sphereGrad.addColorStop(0, '#faf3e4');
-    sphereGrad.addColorStop(0.62, '#efe2c7');
-    sphereGrad.addColorStop(0.92, '#e2cfa9');
-    sphereGrad.addColorStop(1, '#d3bc92');
-    ctx.fillStyle = sphereGrad;
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    ctx.clip();
-
-    ctx.strokeStyle = 'rgba(170, 145, 108, 0.16)';
-    ctx.lineWidth = 0.7;
-    for (let lat = -60; lat <= 60; lat += 30) {
-      ctx.beginPath();
-      let started = false;
-      for (let lon = -180; lon <= 180; lon += 6) {
-        const v = lonLatToVec3(lon, lat);
-        const r = rotateVec(v[0], v[1], v[2], cosLon, sinLon, cosLat, sinLat);
-        if (r[2] > 0) {
-          const sx = cx + r[0] * baseR;
-          const sy = cy - r[1] * baseR;
-          if (!started) { ctx.moveTo(sx, sy); started = true; }
-          else ctx.lineTo(sx, sy);
-        } else {
-          started = false;
-        }
+    if (camMoving) {
+      // Draw directly when camera is rotating (avoids wasteful double-draw + full-canvas memcpy!)
+      drawMainGlobeBase(ctx, cx, cy, baseR, cosLon, sinLon, cosLat, sinLat, true);
+    } else {
+      const bKey = state.rotLon.toFixed(4) + '|' + state.rotLat.toFixed(4) + '|' + state.zoom.toFixed(3) + '|' +
+        vpW + '|' + vpH + '|' + sidebarOpen + '|' + state.showAurora + '|' + state.timelineVisible + '|' +
+        state.borderArcs3D.length;
+      if (bKey !== mainBaseKey) {
+        renderMainBaseToCache(cx, cy, baseR, cosLon, sinLon, cosLat, sinLat);
+        mainBaseKey = bKey;
       }
-      ctx.stroke();
-    }
-
-    ctx.fillStyle = 'rgba(166, 139, 100, 0.42)';
-    const dots = state.landDots3D;
-    const dotSize = Math.max(1.1, 1.5 * state.zoom);
-    for (let i = 0; i < dots.length; i++) {
-      const d = dots[i];
-      const r = rotateVec(d[0], d[1], d[2], cosLon, sinLon, cosLat, sinLat);
-      if (r[2] > 0.03) {
-        ctx.fillRect(cx + r[0] * baseR - dotSize * 0.5, cy - r[1] * baseR - dotSize * 0.5, dotSize, dotSize);
+      if (mainBaseCanvas) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(mainBaseCanvas, 0, 0);
+        ctx.restore();
       }
     }
-
-    ctx.strokeStyle = 'rgba(155, 128, 89, 0.58)';
-    ctx.lineWidth = 0.9;
-    const arcs = state.borderArcs3D;
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i];
-      ctx.beginPath();
-      let started = false;
-      for (let j = 0; j < arc.length; j++) {
-        const p = arc[j];
-        const r = rotateVec(p[0], p[1], p[2], cosLon, sinLon, cosLat, sinLat);
-        if (r[2] > 0.01) {
-          const sx = cx + r[0] * baseR;
-          const sy = cy - r[1] * baseR;
-          if (!started) { ctx.moveTo(sx, sy); started = true; }
-          else ctx.lineTo(sx, sy);
-        } else {
-          started = false;
-        }
-      }
-      ctx.stroke();
-    }
-
-    ctx.restore();
-
-    ctx.strokeStyle = 'rgba(165, 138, 98, 0.55)';
-    ctx.lineWidth = 1.1;
-    ctx.beginPath();
-    ctx.arc(cx, cy, baseR, 0, Math.PI * 2);
-    ctx.stroke();
 
     // Homeland-First Dispersal Arcs: radiate from Homeland center to all holding Museums
     if (state.globeLens === 'homeland' && state.homelandPins.length > 0) {
@@ -3933,10 +4096,12 @@
 
     if (state.showOrigins || state.animatingFlight || state.timelineActive) {
       ctx.strokeStyle = (state.animatingFlight || state.timelineActive)
-        ? 'rgba(196, 144, 64, 0.22)'
+        ? 'rgba(196, 144, 64, 0.24)'
         : 'rgba(176, 132, 68, 0.22)';
-      ctx.lineWidth = 0.82;
-      const stride = (state.animatingFlight || state.timelineActive) ? 18 : 12;
+      ctx.lineWidth = 0.85;
+      const stride = Math.max(18, Math.floor(state.artifacts.length / (fastMotion ? 56 : 140)));
+      const segs = fastMotion ? 10 : 14;
+      ctx.beginPath();
       for (let i = 0; i < state.artifacts.length; i += stride) {
         const art = state.artifacts[i];
         if (state.globeLens === 'museum' && state.selectedCountry && art.country !== state.selectedCountry) continue;
@@ -3945,27 +4110,32 @@
           const dYr = state.timelineYear - art.acqYear;
           if (dYr < 0 || dYr > timelineWaveSpan()) continue;
         }
-        ctx.beginPath();
         let started = false;
-        for (let s = 0; s <= 16; s++) {
-          const u = s / 16;
-          const vx = art.hostVec[0] + (art.homeVec[0] - art.hostVec[0]) * u;
-          const vy = art.hostVec[1] + (art.homeVec[1] - art.hostVec[1]) * u;
-          const vz = art.hostVec[2] + (art.homeVec[2] - art.hostVec[2]) * u;
+        const hx = art.hostVec[0], hy = art.hostVec[1], hz = art.hostVec[2];
+        const dx = art.homeVec[0] - hx, dy = art.homeVec[1] - hy, dz = art.homeVec[2] - hz;
+        for (let s = 0; s <= segs; s++) {
+          const u = s / segs;
+          const vx = hx + dx * u;
+          const vy = hy + dy * u;
+          const vz = hz + dz * u;
           const l = Math.hypot(vx, vy, vz) || 1;
-          const arcH = 1 + Math.sin(u * Math.PI) * 0.16;
-          const rv = rotateVec((vx / l) * arcH, (vy / l) * arcH, (vz / l) * arcH, cosLon, sinLon, cosLat, sinLat);
-          if (rv[2] > -0.05) {
-            const sx = cx + rv[0] * baseR;
-            const sy = cy - rv[1] * baseR;
+          const arcH = (1 + Math.sin(u * Math.PI) * 0.16) / l;
+          const px = vx * arcH, py = vy * arcH, pz = vz * arcH;
+          const rx = px * cosLon + pz * sinLon;
+          const z1 = -px * sinLon + pz * cosLon;
+          const rz = py * sinLat + z1 * cosLat;
+          if (rz > -0.05) {
+            const ry = py * cosLat - z1 * sinLat;
+            const sx = cx + rx * baseR;
+            const sy = cy - ry * baseR;
             if (!started) { ctx.moveTo(sx, sy); started = true; }
             else ctx.lineTo(sx, sy);
           } else {
             started = false;
           }
         }
-        ctx.stroke();
       }
+      ctx.stroke();
     }
 
     visibleCards.length = 0;
@@ -3973,14 +4143,20 @@
     const baseCardPx = Math.max(5.5, Math.min(26, baseR * 0.036 * state.cardScale));
     const isHomelandMode = state.globeLens === 'homeland';
     const tlCutoffYr = state.timelineActive ? displayedTimelineYear() : Infinity;
+    const cardStride = (fastMotion && state.artifacts.length > 3200) ? 2 : 1;
 
     for (let i = 0; i < state.artifacts.length; i++) {
       const art = state.artifacts[i];
+      if (cardStride > 1 && !art.isCurated && (i % cardStride !== 0) && (!state.selectedCountry || art.country !== state.selectedCountry)) continue;
       if (state.timelineActive && art.acqYear > tlCutoffYr) continue;
       if (!artifactMatchesQuery(art, q)) continue;
       const pos = computeArtifactCurrentVec(art);
-      const rv = rotateVec(pos[0], pos[1], pos[2], cosLon, sinLon, cosLat, sinLat);
-      if (rv[2] < -0.02) continue;
+      const px = pos[0], py = pos[1], pz = pos[2];
+      const rx = px * cosLon + pz * sinLon;
+      const z1 = -px * sinLon + pz * cosLon;
+      const rz = py * sinLat + z1 * cosLat;
+      if (rz < -0.02) continue;
+      const ry = py * cosLat - z1 * sinLat;
 
       const dimmed = isHomelandMode
         ? Boolean(state.homelandFilterMuseumId && art.museumId !== state.homelandFilterMuseumId)
@@ -3988,11 +4164,11 @@
 
       visibleCards.push({
         art: art,
-        sx: cx + rv[0] * baseR,
-        sy: cy - rv[1] * baseR,
-        rx: rv[0],
-        ry: rv[1],
-        rz: rv[2],
+        sx: cx + rx * baseR,
+        sy: cy - ry * baseR,
+        rx: rx,
+        ry: ry,
+        rz: rz,
         dimmed: dimmed
       });
     }
@@ -4003,78 +4179,134 @@
     const fallbackCols = activeAtlas ? activeAtlas.cols : 8;
     const fallbackAtlas = activeAtlas ? activeAtlas.globeSpriteAtlas : null;
 
-    for (let i = 0; i < visibleCards.length; i++) {
-      const c = visibleCards[i];
-      const art = c.art;
-      const itemAtl = (art.museumId && atlasCache[art.museumId]) ? atlasCache[art.museumId] : null;
-      const aCols = itemAtl ? itemAtl.cols : fallbackCols;
-      const gAtlas = itemAtl ? itemAtl.globeSpriteAtlas : fallbackAtlas;
-
-      const isHovered = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
-      const perspectiveScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
-      const sz = baseCardPx * perspectiveScale * (isHovered ? 1.48 : 1.0);
-      ctx.globalAlpha = c.dimmed ? 0.18 : Math.min(1, 0.35 + c.rz * 1.15);
-
-      if (mode === 'particles' || !gAtlas) {
-        const pRad = Math.max(1.8, sz * 0.28);
-        ctx.fillStyle = isHovered ? '#fff6d6' : (art.sprite % 2 === 0 ? '#c98b32' : '#3a7d8c');
-        ctx.beginPath();
-        ctx.arc(c.sx, c.sy, pRad, 0, Math.PI * 2);
-        ctx.fill();
-        c.hitX = c.sx;
-        c.hitY = c.sy;
-        c.hitR = Math.max(5, pRad + 3);
-        continue;
-      }
-
-      const sxAtlas = (art.sprite % aCols) * GLOBE_MIP_SIZE;
-      const syAtlas = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
-
-      if (mode === 'flat' || mode === 'both') {
-        const eRot = rotateVec(art.east[0], art.east[1], art.east[2], cosLon, sinLon, cosLat, sinLat);
-        const nRot = rotateVec(art.north[0], art.north[1], art.north[2], cosLon, sinLon, cosLat, sinLat);
-        const half = sz * 0.48;
-        ctx.save();
-        ctx.transform(
-          eRot[0] * half, -eRot[1] * half,
-          -nRot[0] * half, nRot[1] * half,
-          c.sx, c.sy
-        );
-        ctx.drawImage(gAtlas, sxAtlas, syAtlas, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, -1, -1, 2, 2);
-        ctx.restore();
-        c.hitX = c.sx;
-        c.hitY = c.sy;
-        c.hitR = sz * 0.55;
-      }
-
-      if (mode === 'standing' || mode === 'both') {
+    if (fastMotion && mode === 'standing' && fallbackAtlas) {
+      // Ultra-fast 60 FPS motion path: 4 pigment-bucket batches (zero CSS color parse thrashing!) + curated HD plates on top
+      const palette = ['#8f6a3e', '#5d4732', '#b0884a', '#486269'];
+      const bins = [[], [], [], []];
+      const curatedDraw = [];
+      for (let i = 0; i < visibleCards.length; i++) {
+        const c = visibleCards[i];
+        const art = c.art;
+        const isHovered = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
+        const perspectiveScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
+        const sz = baseCardPx * perspectiveScale * (isHovered ? 1.48 : 1.0);
         const cardW = sz;
         const cardH = sz * 1.06;
         const drawX = c.sx - cardW * 0.5;
         const drawY = c.sy - cardH;
-
-        ctx.fillStyle = 'rgba(48, 34, 16, 0.22)';
-        if (cardW < 15) {
-          ctx.fillRect(drawX + 1, c.sy - 1, Math.max(2, cardW - 2), 2);
-        } else {
-          ctx.beginPath();
-          ctx.ellipse(c.sx, c.sy + 1, cardW * 0.42, cardW * 0.14, 0, 0, Math.PI * 2);
-          ctx.fill();
+        c.hitX = c.sx;
+        c.hitY = c.sy - cardH * 0.5;
+        c.hitR = cardW * 0.6;
+        if (art.isCurated || isHovered) {
+          curatedDraw.push(c, drawX, drawY, cardW, cardH, isHovered);
+        } else if (!c.dimmed) {
+          bins[art.sprite & 3].push(drawX, drawY, cardW, cardH);
         }
-
+      }
+      ctx.globalAlpha = 0.88;
+      for (let b = 0; b < 4; b++) {
+        const arr = bins[b];
+        if (!arr.length) continue;
+        ctx.fillStyle = palette[b];
+        for (let k = 0; k < arr.length; k += 4) {
+          ctx.fillRect(arr[k], arr[k + 1], arr[k + 2], arr[k + 3]);
+        }
+      }
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < curatedDraw.length; k += 6) {
+        const c = curatedDraw[k];
+        const art = c.art;
+        const drawX = curatedDraw[k + 1], drawY = curatedDraw[k + 2];
+        const cardW = curatedDraw[k + 3], cardH = curatedDraw[k + 4];
+        const isHovered = curatedDraw[k + 5];
+        const itemAtl = (art.museumId && atlasCache[art.museumId]) ? atlasCache[art.museumId] : null;
+        const aCols = itemAtl ? itemAtl.cols : fallbackCols;
+        const gAtlas = itemAtl ? itemAtl.globeSpriteAtlas : fallbackAtlas;
+        if (!gAtlas) continue;
+        const sxAtlas = (art.sprite % aCols) * GLOBE_MIP_SIZE;
+        const syAtlas = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
         ctx.drawImage(gAtlas, sxAtlas, syAtlas, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, drawX, drawY, cardW, cardH);
-
         if (isHovered) {
           ctx.strokeStyle = '#f5d487';
           ctx.lineWidth = 1.8;
           ctx.strokeRect(drawX - 1, drawY - 1, cardW + 2, cardH + 2);
         }
-        c.hitX = c.sx;
-        c.hitY = c.sy - cardH * 0.5;
-        c.hitR = cardW * 0.6;
       }
+    } else {
+      let curAlpha = -1;
+      ctx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+
+      for (let i = 0; i < visibleCards.length; i++) {
+        const c = visibleCards[i];
+        const art = c.art;
+        const itemAtl = (art.museumId && atlasCache[art.museumId]) ? atlasCache[art.museumId] : null;
+        const aCols = itemAtl ? itemAtl.cols : fallbackCols;
+        const gAtlas = itemAtl ? itemAtl.globeSpriteAtlas : fallbackAtlas;
+
+        const isHovered = (state.hoveredArtifact === art) || (state.selectedArtifact === art);
+        const perspectiveScale = 0.72 + 0.36 * Math.min(1.2, Math.max(0, c.rz));
+        const sz = baseCardPx * perspectiveScale * (isHovered ? 1.48 : 1.0);
+        const nextAlpha = c.dimmed ? 0.18 : (c.rz > 0.56 ? 1.0 : (c.rz > 0.28 ? 0.8 : 0.5));
+        if (nextAlpha !== curAlpha) {
+          ctx.globalAlpha = nextAlpha;
+          curAlpha = nextAlpha;
+        }
+
+        if (mode === 'particles' || !gAtlas) {
+          const pRad = Math.max(1.8, sz * 0.28);
+          ctx.fillStyle = isHovered ? '#fff6d6' : (art.sprite % 2 === 0 ? '#c98b32' : '#3a7d8c');
+          ctx.beginPath();
+          ctx.arc(c.sx, c.sy, pRad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+          c.hitX = c.sx;
+          c.hitY = c.sy;
+          c.hitR = Math.max(5, pRad + 3);
+          continue;
+        }
+
+        const sxAtlas = (art.sprite % aCols) * GLOBE_MIP_SIZE;
+        const syAtlas = Math.floor(art.sprite / aCols) * GLOBE_MIP_SIZE;
+
+        if (mode === 'flat' || mode === 'both') {
+          const eRot = rotateVec(art.east[0], art.east[1], art.east[2], cosLon, sinLon, cosLat, sinLat);
+          const nRot = rotateVec(art.north[0], art.north[1], art.north[2], cosLon, sinLon, cosLat, sinLat);
+          const half = sz * 0.48;
+          ctx.save();
+          ctx.transform(
+            eRot[0] * half, -eRot[1] * half,
+            -nRot[0] * half, nRot[1] * half,
+            c.sx, c.sy
+          );
+          ctx.drawImage(gAtlas, sxAtlas, syAtlas, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, -1, -1, 2, 2);
+          ctx.restore();
+          c.hitX = c.sx;
+          c.hitY = c.sy;
+          c.hitR = sz * 0.55;
+        }
+
+        if (mode === 'standing' || mode === 'both') {
+          const cardW = sz;
+          const cardH = sz * 1.06;
+          const drawX = c.sx - cardW * 0.5;
+          const drawY = c.sy - cardH;
+
+          ctx.fillStyle = 'rgba(48, 34, 16, 0.22)';
+          ctx.fillRect(drawX + 1, c.sy - 1, Math.max(2, cardW - 2), 2.2);
+          ctx.drawImage(gAtlas, sxAtlas, syAtlas, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, drawX, drawY, cardW, cardH);
+
+          if (isHovered) {
+            ctx.strokeStyle = '#f5d487';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(drawX - 1, drawY - 1, cardW + 2, cardH + 2);
+          }
+          c.hitX = c.sx;
+          c.hitY = c.sy - cardH * 0.5;
+          c.hitR = cardW * 0.6;
+        }
+      }
+      ctx.globalAlpha = 1;
     }
-    ctx.globalAlpha = 1;
 
     // Clickable Museum City Pin Pills on front hemisphere in Homeland-First Mode
     if (isHomelandMode && state.homelandPins.length > 0) {
@@ -4244,6 +4476,11 @@
     const sidebarBlocked = vpW > 920 && elSidebar && !elSidebar.classList.contains('collapsed');
     const bottomSafe = state.timelineVisible ? 168 : 104;
 
+    ctx.strokeStyle = frontPass ? 'rgba(138, 114, 80, 0.34)' : 'rgba(155, 132, 98, 0.20)';
+    ctx.lineWidth = 0.65;
+    ctx.beginPath();
+    const labelDrawList = [];
+
     for (let p = 0; p < planes.length; p++) {
       const ctX = Math.cos(planes[p].tiltX), stX = Math.sin(planes[p].tiltX);
       const ctZ = Math.cos(planes[p].tiltZ), stZ = Math.sin(planes[p].tiltZ);
@@ -4252,33 +4489,32 @@
         if (p > 0 && i % 2 !== 0) continue;
         const e = entries[i];
         const a = e.angle + p * 0.5;
-        const x0 = Math.cos(a), y0 = 0, z0 = Math.sin(a);
-        const y1 = y0 * ctX - z0 * stX;
-        const z1 = y0 * stX + z0 * ctX;
+        const x0 = Math.cos(a), z0 = Math.sin(a);
+        const y1 = -z0 * stX;
+        const z1 = z0 * ctX;
         const x2 = x0 * ctZ - y1 * stZ;
         const y2 = x0 * stZ + y1 * ctZ;
 
-        const rv = rotateVec(x2, y2, z1, cosLon, sinLon, cosLat, sinLat);
-        const isFront = rv[2] >= 0;
+        const rx = x2 * cosLon + z1 * sinLon;
+        const rz1 = -x2 * sinLon + z1 * cosLon;
+        const rz = y2 * sinLat + rz1 * cosLat;
+        const isFront = rz >= 0;
         if (isFront !== frontPass) continue;
+        const ry = y2 * cosLat - rz1 * sinLat;
 
         const innerR = baseR * (1.035 + p * 0.03);
         const outerR = baseR * (1.035 + p * 0.03 + e.len);
-        const xIn = cx + rv[0] * innerR;
-        const yIn = cy - rv[1] * innerR;
-        const xOut = cx + rv[0] * outerR;
-        const yOut = cy - rv[1] * outerR;
+        const xIn = cx + rx * innerR;
+        const yIn = cy - ry * innerR;
+        const xOut = cx + rx * outerR;
+        const yOut = cy - ry * outerR;
 
         if (!frontPass && Math.hypot(xIn - cx, yIn - cy) < baseR * 0.98 && Math.hypot(xOut - cx, yOut - cy) < baseR * 0.98) {
           continue;
         }
 
-        ctx.strokeStyle = frontPass ? 'rgba(138, 114, 80, 0.34)' : 'rgba(155, 132, 98, 0.20)';
-        ctx.lineWidth = 0.65;
-        ctx.beginPath();
         ctx.moveTo(xIn, yIn);
         ctx.lineTo(xOut, yOut);
-        ctx.stroke();
 
         if (i % 6 === 0 && Math.hypot(xOut - cx, yOut - cy) > baseR * 1.03) {
           if (yOut < 96 && Math.abs(xOut - (vpW * 0.5)) < 210) continue;
@@ -4296,11 +4532,18 @@
           }
           if (!collides) {
             usedY.push(yOut);
-            ctx.fillStyle = 'rgba(110, 88, 58, 0.46)';
-            ctx.textAlign = alignRight ? 'left' : 'right';
-            ctx.fillText(e.text, xOut + (alignRight ? 4 : -4), yOut);
+            labelDrawList.push([e.text, xOut + (alignRight ? 4 : -4), yOut, alignRight]);
           }
         }
+      }
+    }
+    ctx.stroke();
+    if (labelDrawList.length) {
+      ctx.fillStyle = 'rgba(110, 88, 58, 0.46)';
+      for (let i = 0; i < labelDrawList.length; i++) {
+        const it = labelDrawList[i];
+        ctx.textAlign = it[3] ? 'left' : 'right';
+        ctx.fillText(it[0], it[1], it[2]);
       }
     }
     ctx.restore();
@@ -4958,23 +5201,8 @@
     resizeCanvas();
     applyStaticAndMuseumTranslations();
 
-    // Start loading active museum's .webp atlas immediately without blocking UI boot
-    ensureMuseumAtlas(state.museumId).then(() => {
-      let pfIdx = 0;
-      const prefetchStep = () => {
-        if (pfIdx >= SUPPORTED_MUSEUMS.length) return;
-        const mid = SUPPORTED_MUSEUMS[pfIdx++];
-        loadMuseumAtlas(mid, false);
-        setTimeout(() => {
-          if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(prefetchStep, { timeout: 1500 });
-          } else {
-            prefetchStep();
-          }
-        }, 220);
-      };
-      setTimeout(prefetchStep, 260);
-    });
+    // Load active museum's .webp atlas on-demand (other museums load instantaneously when selected, zero background GC freezes!)
+    ensureMuseumAtlas(state.museumId);
 
     try {
       const { polyMap, borderArcs3D, landDots } = await decodeWorldMap();
@@ -5050,6 +5278,10 @@
         ensureMainRaf();
       }
     });
+
+    window.addEventListener('scroll', () => {
+      mainScrollPauseUntil = performance.now() + 160;
+    }, { passive: true });
 
     ensureMainRaf();
   }

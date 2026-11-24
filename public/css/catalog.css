@@ -951,8 +951,6 @@ html[lang="zh-CN"] #cat-main-title {
   inset: 0;
   z-index: 120;
   background: rgba(24, 17, 10, 0.62);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   display: none;
   align-items: center;
   justify-content: center;
@@ -1145,8 +1143,6 @@ html[lang="zh-CN"] #cat-sheet-title-primary {
   inset: 0;
   z-index: 140;
   background: rgba(18, 13, 8, 0.84);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   display: none;
   align-items: center;
   justify-content: center;
