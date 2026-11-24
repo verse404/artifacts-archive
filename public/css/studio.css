@@ -761,22 +761,96 @@
   flex-wrap: wrap;
 }
 
-#site-nav .nav-inner {
-  max-width: 1580px;
+/* Unified Page Switcher Pill on index.html + Always-Visible Editorial Subsection Bar */
+.idx-page-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(232, 219, 196, 0.72);
+  border: 1px solid var(--border-sepia-strong);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-@media (max-width: 1640px) {
-  .nav-links a[data-nav-section],
-  .ca-sec-links,
-  .cat-sec-links {
+.idx-page-switcher::-webkit-scrollbar {
+  display: none;
+}
+
+.idx-page-pill {
+  text-decoration: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--ink-body);
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.idx-page-pill:hover {
+  color: var(--ink-strong);
+  background: rgba(255, 250, 240, 0.65);
+}
+
+.idx-page-pill.active {
+  background: linear-gradient(135deg, #8c6223, #6d4a14);
+  color: #fffaf0;
+  box-shadow: 0 2px 6px rgba(92, 62, 18, 0.22);
+}
+
+#site-nav .nav-inner {
+  max-width: 1580px;
+  flex-wrap: wrap;
+  row-gap: 5px;
+  padding: 8px 18px 6px;
+}
+
+.idx-sec-links,
+.ca-sec-links,
+.cat-sec-links {
+  order: 4;
+  flex-basis: 100%;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(176, 150, 113, 0.24);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.idx-sec-links::-webkit-scrollbar,
+.ca-sec-links::-webkit-scrollbar,
+.cat-sec-links::-webkit-scrollbar {
+  display: none;
+}
+
+.idx-sec-links a,
+.ca-sec-links a,
+.cat-sec-links a {
+  padding: 2px 3px 3px;
+  font-size: 11.8px;
+}
+
+@media (max-width: 1280px) {
+  .st-kbd-chip,
+  .nav-cta-btn {
     display: none;
   }
 }
 
-@media (max-width: 1180px) {
-  .st-kbd-chip,
-  .nav-cta-btn {
-    display: none;
+@media (max-width: 560px) {
+  .idx-sec-links,
+  .ca-sec-links,
+  .cat-sec-links {
+    justify-content: flex-start;
+    gap: 14px;
   }
 }
 

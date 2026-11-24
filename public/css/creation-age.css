@@ -46,7 +46,7 @@
 #era-deck,
 #chrono-globe-section,
 #synchrony-section {
-  scroll-margin-top: 68px;
+  scroll-margin-top: 86px;
 }
 
 .ca-hero-deck {
@@ -738,9 +738,6 @@ html[lang="zh-CN"] #ca-main-title {
 }
 
 @media (max-width: 1040px) {
-  .ca-sec-links {
-    display: none;
-  }
   .era-cards-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

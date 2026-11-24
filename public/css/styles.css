@@ -213,7 +213,7 @@ html[lang="zh-CN"] .brand-text-primary {
 #globe-section,
 #masterpieces,
 #methodology {
-  scroll-margin-top: 66px;
+  scroll-margin-top: 86px;
 }
 
 .nav-cta-btn {
@@ -233,12 +233,6 @@ html[lang="zh-CN"] .brand-text-primary {
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(120, 82, 24, 0.18);
   transition: transform 0.15s ease, filter 0.15s ease;
-}
-
-@media (max-width: 1340px) {
-  .nav-links a[data-nav-section] {
-    display: none;
-  }
 }
 
 .nav-cta-btn:hover {
@@ -2940,15 +2934,14 @@ html[lang="zh-CN"] .method-item h3 {
     gap: 6px;
   }
 
-  .nav-links a[data-nav-section],
   .nav-cta-btn {
     display: none;
   }
 
   .nav-links {
     display: flex;
-    gap: 6px;
-    order: 3;
+    gap: 14px;
+    order: 4;
     width: 100%;
     min-width: 0;
     justify-content: flex-start;
@@ -2956,6 +2949,7 @@ html[lang="zh-CN"] .method-item h3 {
     scrollbar-width: none;
   }
 
+  .idx-page-switcher,
   .st-page-switcher,
   .ca-page-switcher,
   .cat-page-switcher {
@@ -2964,6 +2958,7 @@ html[lang="zh-CN"] .method-item h3 {
     min-width: 0;
   }
 
+  .idx-page-pill,
   .st-page-pill,
   .ca-page-pill,
   .cat-page-pill {
