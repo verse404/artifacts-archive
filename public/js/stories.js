@@ -957,7 +957,7 @@
       dot.type = 'button';
       dot.className = 'st-dot-btn' + (i === state.stopIndex ? ' active' : '');
       dot.textContent = String(i + 1);
-      dot.setAttribute('aria-label', 'Stop ' + (i + 1));
+      dot.setAttribute('aria-label', state.lang === 'zh' ? ('第 ' + (i + 1) + ' 站') : ('Stop ' + (i + 1)));
       dot.addEventListener('click', () => {
         state.autoPlaying = false;
         syncPlayAndReuniteButtons();
@@ -980,8 +980,12 @@
       topRow.className = 'st-chap-top';
       const stepPill = document.createElement('span');
       stepPill.className = 'st-chap-step-pill';
-      stepPill.textContent = (state.lang === 'zh' ? ('第 0' + (i + 1) + ' 站 · ') : ('STOP 0' + (i + 1) + ' · ')) +
-        stop.art.date + ' · Acq. ' + stop.art.acq;
+      const dateStr = state.lang === 'zh'
+        ? String(stop.art.date || '').replace(/(\d+)\s*BC/gi, '公元前$1年').replace(/\bAD\s*(\d+)/gi, '公元$1年')
+        : String(stop.art.date || '');
+      stepPill.textContent = state.lang === 'zh'
+        ? ('第 0' + (i + 1) + ' 站 · ' + dateStr + ' · ' + stop.art.acq + '年入藏')
+        : ('STOP 0' + (i + 1) + ' · ' + dateStr + ' · Acq. ' + stop.art.acq);
       const distPill = document.createElement('span');
       distPill.className = 'st-chap-dist-pill';
       distPill.textContent = stop.distKm > 20
@@ -1466,6 +1470,8 @@
     }
 
     const lHash = state.lang === 'zh' ? '#lang=zh' : '';
+    elBtnPrev.setAttribute('aria-label', state.lang === 'zh' ? '上一站国宝' : 'Previous story stop');
+    elBtnNext.setAttribute('aria-label', state.lang === 'zh' ? '下一站国宝' : 'Next story stop');
     document.getElementById('st-brand-back-link').href = pageHref('prov') + lHash;
     document.getElementById('st-nav-prov-link').href = pageHref('prov') + lHash;
     document.getElementById('st-footer-prov-link').href = pageHref('prov') + lHash;
@@ -1548,6 +1554,9 @@
         renderStoryPrologueAndChapters();
         syncPlayAndReuniteButtons();
         updateHudAndActiveCard();
+        if (elLightbox.classList.contains('open') && state.lightboxStopIdx >= 0) {
+          openLightbox(state.lightboxStopIdx);
+        }
       });
     }
 
@@ -1629,17 +1638,21 @@
     });
 
     document.addEventListener('keydown', (e) => {
+      const tag = e.target && e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (elLightbox.classList.contains('open')) {
         if (e.key === 'Escape') elLightbox.classList.remove('open');
-        else if (e.key === 'ArrowLeft') openLightbox(state.lightboxStopIdx - 1);
-        else if (e.key === 'ArrowRight') openLightbox(state.lightboxStopIdx + 1);
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); openLightbox(state.lightboxStopIdx - 1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); openLightbox(state.lightboxStopIdx + 1); }
         return;
       }
       if (e.key === 'ArrowLeft') {
+        e.preventDefault();
         state.autoPlaying = false;
         syncPlayAndReuniteButtons();
         selectStop(state.stopIndex - 1, true);
       } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
         state.autoPlaying = false;
         syncPlayAndReuniteButtons();
         selectStop(state.stopIndex + 1, true);

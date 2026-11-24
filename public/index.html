@@ -88,7 +88,7 @@
           Full 45,008 Catalog ▤
         </a>
       </div>
-      <div class="ledger-strip" aria-label="Archive summary statistics">
+      <div class="ledger-strip" role="region" aria-label="Archive summary statistics">
         <a class="ledger-item ledger-link" href="#globe-section" data-nav-section="globe-section" data-i18n-title="ledgerArtifactsTip" title="Explore all catalogued artifacts on the 3D globe">
           <div id="ledger-num-artifacts" class="ledger-num">5,468</div>
           <div class="ledger-label" data-i18n="ledgerArtifactsLbl">Catalogued Artifacts →</div>
@@ -123,14 +123,14 @@
       </div>
 
       <div id="stage-header">
-        <div id="stage-header-title" class="stage-header-title" data-i18n="stageTitle">Artifacts Archive</div>
+        <h2 id="stage-header-title" class="stage-header-title" data-i18n="stageTitle">Artifacts Archive</h2>
         <div id="header-sub">5,468 artifacts · 100 countries</div>
         <div id="active-country-banner"></div>
       </div>
 
       <div id="flight-banner" role="status" aria-live="polite"></div>
 
-      <aside id="left-sidebar" aria-label="Country and artifact explorer">
+      <div id="left-sidebar" role="region" aria-label="Country and artifact explorer">
         <div class="sidebar-topbar">
           <span id="sidebar-heading">100 Countries</span>
           <button id="sidebar-collapse-btn" type="button" data-i18n-title="sidebarToggleTip" title="Collapse or expand sidebar" aria-label="Toggle sidebar">−</button>
@@ -207,7 +207,7 @@
           <div id="homeland-museum-breakdown" class="homeland-museum-breakdown is-hidden"></div>
           <div id="artifact-thumb-grid"></div>
         </div>
-      </aside>
+      </div>
 
       <article id="artifact-modal" class="scrubber-offset" aria-label="Selected artifact details">
         <button id="modal-preview-wrap" type="button" data-i18n-title="modalPreviewTip" title="Click to enlarge high-resolution photograph">

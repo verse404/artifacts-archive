@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Full Artifact Catalog (45,008) · 全部文物总名录 — Artifacts Archive</title>
   <meta name="description" content="Complete searchable, filterable, and exportable master catalogue of all 45,008 artifacts across 10 world museums and 101 origin homelands, including 325 verified HD masterpieces." />
+  <meta property="og:title" content="Full Artifact Catalog (45,008) · 全部文物总名录 — Artifacts Archive" />
+  <meta property="og:description" content="Search, filter, sort, and export all 45,008 catalogued records across 10 world museums and 101 origin homelands, plus an interactive 101×10 cross-tab matrix." />
+  <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
   <link rel="stylesheet" href="./css/catalog.css" />
@@ -51,7 +54,7 @@
           </p>
         </div>
 
-        <div class="cat-kpi-strip" aria-label="Filtered archive totals">
+        <div class="cat-kpi-strip" role="region" aria-label="Filtered archive totals">
           <div class="cat-kpi-box">
             <div id="cat-kpi-matching" class="cat-kpi-num">45,008</div>
             <div class="cat-kpi-lbl" data-i18n="kpiMatching">Matching Artifacts</div>
@@ -79,7 +82,7 @@
       <div id="cat-museum-pills" class="cat-museum-pills" role="group" aria-label="Filter by holding museum"></div>
 
       <!-- Faceted Search, Filters, Sort & CSV Export -->
-      <div class="cat-filter-card" aria-label="Search and filter controls">
+      <div class="cat-filter-card" role="region" aria-label="Search and filter controls">
         <div class="cat-search-row">
           <div class="cat-search-box">
             <svg class="gs-icon gs-icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -153,7 +156,7 @@
           <div class="cat-jump-wrap">
             <label for="cat-jump-input" data-i18n="jumpRecordLbl">Jump #</label>
             <input id="cat-jump-input" type="number" min="1" max="45008" placeholder="1–45008" />
-            <button id="cat-jump-btn" type="button" class="cat-jump-go" data-i18n="jumpGoBtn">Go</button>
+            <button id="cat-jump-btn" type="button" class="cat-jump-go" aria-label="Jump to catalog record number" data-i18n="jumpGoBtn">Go</button>
           </div>
         </div>
       </div>

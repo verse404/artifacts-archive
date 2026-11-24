@@ -141,6 +141,12 @@
       tlAllYearsBtn: 'Reset',
       tlCloseTip: 'Hide timeline bar',
       tlDefaultHint: 'Play ▶ or drag slider to watch acquisitions fly into museums & land',
+      ledgerArtifactsTip: 'Explore all catalogued artifacts on the 3D globe',
+      ledgerCountriesTip: 'Browse all countries of origin (including host country)',
+      ledgerTimelineTip: 'Play chronological acquisition timeline',
+      ledgerMasterpiecesTip: 'Jump to the HD Masterpieces gallery',
+      btnGoHomeTip: 'Launch one-click global repatriation flight',
+      btnCollectTip: 'Gather all catalogued works back to the museum',
       navStories: 'Stories ✦',
       heroStoriesBtn: '5 Curator Stories ✦',
       navCreationAge: 'Creation Age ✦',
@@ -265,6 +271,12 @@
       tlAllYearsBtn: '重置回乡',
       tlCloseTip: '隐藏时间轴面板',
       tlDefaultHint: '点击 ▶ 播放或拖动滑块，观看历年入藏文物起飞并最终落馆',
+      ledgerArtifactsTip: '在 3D 地球仪上探索全部已建档馆藏文物',
+      ledgerCountriesTip: '浏览全部原属国与地区（含本馆所在国）',
+      ledgerTimelineTip: '播放博物馆历史入藏时间轴动画',
+      ledgerMasterpiecesTip: '跳转至高清镇馆名作图录',
+      btnGoHomeTip: '一键启动全球文物跨海飞返原属国动画',
+      btnCollectTip: '观看历年文物汇集至现藏博物馆',
       navStories: '策展故事 ✦',
       heroStoriesBtn: '五大策展故事线 ✦',
       navCreationAge: '文明纪年 ✦',
@@ -2330,17 +2342,19 @@
     state.targetRotLat = m.defaultRotLatDeg * DEG2RAD;
     state.targetZoom = 1.0;
 
-    return ensureMuseumAtlas(cleanId).then(() => {
-      generateDatasetForActiveMuseum();
-      applyStaticAndMuseumTranslations();
-      updateCollectButtonUI();
-      selectCountry(null, true);
-      renderMasterpiecesGallery();
-      renderTopOriginsBars();
-      if (!skipHash) {
-        updateUrlHash(null, null);
-      }
-    });
+    // Immediately switch UI & dataset without blocking on WebP download (eliminates lag & race conditions)
+    activeAtlas = atlasCache[cleanId] || null;
+    ensureMuseumAtlas(cleanId);
+    generateDatasetForActiveMuseum();
+    applyStaticAndMuseumTranslations();
+    updateCollectButtonUI();
+    selectCountry(null, true);
+    renderMasterpiecesGallery();
+    renderTopOriginsBars();
+    if (!skipHash) {
+      updateUrlHash(null, null);
+    }
+    return Promise.resolve();
   }
 
   function focusHomeland(homelandEn, skipHash) {
@@ -2368,16 +2382,18 @@
     state.targetZoom = 1.06;
 
     const neededMuseums = entry.holdings.map(h => h.museumId);
-    return Promise.all(neededMuseums.map(mid => loadMuseumAtlas(mid, false))).then(() => {
-      generateDatasetForHomeland(entry.en);
-      applyStaticAndMuseumTranslations();
-      updateCollectButtonUI();
-      selectCountry(state.selectedCountry, true);
-      renderTopOriginsBars();
-      if (!skipHash) {
-        updateUrlHash(state.selectedCountry, null);
-      }
-    });
+    for (let i = 0; i < neededMuseums.length; i++) {
+      loadMuseumAtlas(neededMuseums[i], false);
+    }
+    generateDatasetForHomeland(entry.en);
+    applyStaticAndMuseumTranslations();
+    updateCollectButtonUI();
+    selectCountry(state.selectedCountry, true);
+    renderTopOriginsBars();
+    if (!skipHash) {
+      updateUrlHash(state.selectedCountry, null);
+    }
+    return Promise.resolve();
   }
 
   function setGlobeLens(newLens, targetHomelandEn, skipHash) {
@@ -2409,16 +2425,17 @@
     state.targetRotLat = m.defaultRotLatDeg * DEG2RAD;
     state.targetZoom = 1.0;
 
-    return ensureMuseumAtlas(state.museumId).then(() => {
-      generateDatasetForActiveMuseum();
-      applyStaticAndMuseumTranslations();
-      updateCollectButtonUI();
-      selectCountry(null, true);
-      renderTopOriginsBars();
-      if (!skipHash) {
-        updateUrlHash(null, null);
-      }
-    });
+    activeAtlas = atlasCache[state.museumId] || null;
+    ensureMuseumAtlas(state.museumId);
+    generateDatasetForActiveMuseum();
+    applyStaticAndMuseumTranslations();
+    updateCollectButtonUI();
+    selectCountry(null, true);
+    renderTopOriginsBars();
+    if (!skipHash) {
+      updateUrlHash(null, null);
+    }
+    return Promise.resolve();
   }
 
   function setActiveNavSection(sectionId) {
@@ -3588,7 +3605,7 @@
       state.hoveredMuseumPin ? state.hoveredMuseumPin.museumId : '',
       state.searchQuery, state.isCollectedInHost, state.flightProgress.toFixed(4),
       state.timelineActive, state.timelineVisible, state.timelineYear.toFixed(2),
-      vpW, vpH, sidebarOpen, loadedAtlasCount
+      state.lang, vpW, vpH, sidebarOpen, loadedAtlasCount
     ].join('|');
 
     if (!isMoving && sig === mainLastSig) {

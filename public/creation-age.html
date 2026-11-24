@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Creation Age Chronicle · 文明诞生纪年 — Artifacts Archive</title>
   <meta name="description" content="Explore 8,000 years of human civilization by artifact creation age (6000 BC – AD 2023) across 10 world museums and 45,008 catalogued works, with strict historical era filtering." />
+  <meta property="og:title" content="Creation Age Chronicle · 文明诞生纪年 — Artifacts Archive" />
+  <meta property="og:description" content="Explore 8,000 years of human craft (6000 BC – AD 2023) across 10 world museums with strict historical era filtering and a 3D Civilizations Globe." />
+  <meta property="og:type" content="website" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="stylesheet" href="./css/styles.css" />
   <link rel="stylesheet" href="./css/creation-age.css" />
@@ -98,12 +101,12 @@
         <div class="ca-custom-sliders">
           <label class="ca-slider-group" for="ca-start-idx">
             <span data-i18n="caFromLbl">From</span>
-            <input id="ca-start-idx" type="range" min="0" max="24" step="1" value="0" />
+            <input id="ca-start-idx" type="range" min="0" max="24" step="1" value="0" aria-label="Start creation year" />
             <span id="ca-start-readout" class="ca-bound-val">6000 BC</span>
           </label>
           <label class="ca-slider-group" for="ca-end-idx">
             <span data-i18n="caToLbl">To</span>
-            <input id="ca-end-idx" type="range" min="1" max="25" step="1" value="25" />
+            <input id="ca-end-idx" type="range" min="1" max="25" step="1" value="25" aria-label="End creation year" />
             <span id="ca-end-readout" class="ca-bound-val">AD 2023</span>
           </label>
         </div>
@@ -119,10 +122,10 @@
         <div id="ca-globe-sub">45,008 works created across 101 origins · Held in 10 museums</div>
       </div>
 
-      <aside id="ca-sidebar" aria-label="Active civilizations in selected era">
+      <div id="ca-sidebar" role="region" aria-label="Active civilizations in selected era">
         <div class="sidebar-topbar">
           <span id="ca-sidebar-heading">101 Active Origins</span>
-          <button id="ca-sidebar-collapse" type="button" title="Collapse or expand sidebar">−</button>
+          <button id="ca-sidebar-collapse" type="button" title="Collapse or expand sidebar" aria-label="Toggle sidebar">−</button>
         </div>
 
         <div class="search-wrap">
@@ -158,7 +161,7 @@
           <div id="ca-detail-museum-split" class="homeland-museum-breakdown"></div>
           <div id="ca-thumb-grid"></div>
         </div>
-      </aside>
+      </div>
 
       <!-- Selected Artifact Modal -->
       <article id="ca-artifact-modal" aria-label="Selected artifact creation details">

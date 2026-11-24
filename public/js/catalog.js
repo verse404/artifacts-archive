@@ -1391,7 +1391,8 @@
       metaLine.className = 'cat-card-meta-line';
       metaLine.textContent = countryDisplay(rec.countryEn, rec.countryZh) + ' · ' +
         (state.lang === 'zh' ? rec.mShortZh : rec.mShortEn) + ' · ' +
-        formatDateLocalized(rec.dateRaw) + ' · Acq. ' + rec.acqYear;
+        formatDateLocalized(rec.dateRaw) + ' · ' +
+        (state.lang === 'zh' ? (rec.acqYear + '年入藏') : ('Acq. ' + rec.acqYear));
 
       const h3 = document.createElement('h3');
       h3.className = 'cat-card-title';
@@ -2029,6 +2030,9 @@
         renderCrossTabMatrix();
         if (state.activeRecord && elRecordModal.classList.contains('open')) {
           openRecordSheet(state.activeRecord);
+        }
+        if (state.lightboxRecord && elLightbox.classList.contains('open')) {
+          openLightbox(state.lightboxRecord);
         }
       });
     }

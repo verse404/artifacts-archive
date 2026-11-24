@@ -1310,7 +1310,14 @@
       plateWrap.className = 'exhibit-plate-wrap';
       plateWrap.setAttribute('role', 'button');
       plateWrap.setAttribute('tabindex', '0');
+      plateWrap.setAttribute('aria-label', (state.lang === 'zh' ? '查看大图：' : 'Enlarge plate: ') + (state.lang === 'zh' ? art.zh : art.en));
       plateWrap.addEventListener('click', () => openLightbox(art));
+      plateWrap.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openLightbox(art);
+        }
+      });
 
       const cnv = document.createElement('canvas');
       cnv.dataset.sprite = String(art.sprite);
@@ -1653,7 +1660,7 @@
       state.detailMuseumFilter || '', state.searchQuery,
       state.hoveredArtifact ? state.hoveredArtifact.globalId : -1,
       state.selectedArtifact ? state.selectedArtifact.globalId : -1,
-      vpW, vpH, sidebarOpen, loadedAtlasCount
+      state.lang, vpW, vpH, sidebarOpen, loadedAtlasCount
     ].join('|');
 
     if (!isMoving && sig === caLastSig) {
@@ -2020,6 +2027,12 @@
     if (langBtn) {
       state.lang = langBtn.getAttribute('data-lang') === 'zh' ? 'zh' : 'en';
       refreshAllUI(false);
+      if (state.selectedArtifact && elModal.classList.contains('open')) {
+        openModal(state.selectedArtifact, false);
+      }
+      if (state.lightboxArtifact && elLightbox.classList.contains('open')) {
+        openLightbox(state.lightboxArtifact);
+      }
       return;
     }
     const secLink = e.target.closest('a[data-ca-section]');
