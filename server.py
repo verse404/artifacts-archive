@@ -209,6 +209,8 @@ class HardenedExhibitionHandler(BaseHTTPRequestHandler):
             cache_hdr = "no-store"
         elif ext == ".webp" and "/img/atlases/" in raw_path:
             cache_hdr = "public, max-age=31536000, immutable"
+        elif ext in (".css", ".js") and "v=" in (parsed.query or ""):
+            cache_hdr = "public, max-age=31536000, immutable"
         else:
             cache_hdr = "public, max-age=300"
         self.send_response(HTTPStatus.OK)

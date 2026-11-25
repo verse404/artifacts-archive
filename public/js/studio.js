@@ -44,10 +44,12 @@
     { id: 'nile', en: 'Bust of Nefertiti ↔ Temple of Dendur', zh: '娜芙蒂蒂胸像 ↔ 丹铎神庙', a: 'berlin:0', b: 'met:9' }
   ];
 
-  // Build unified index of all 325 curated masterpieces & 101 homelands
+  // Lazy-built unified index of all 325 curated masterpieces & 101 homelands (zero boot overhead!)
   const MASTERPIECES = [];
   const MASTER_BY_KEY = new Map();
   const HOMELANDS_MAP = new Map();
+  let HOMELANDS = [];
+  let indicesBuilt = false;
 
   function parseMidYear(dateStr) {
     const s = String(dateStr || '').trim();
@@ -103,7 +105,9 @@
     return [a[0] * wA + b[0] * wB, a[1] * wA + b[1] * wB, a[2] * wA + b[2] * wB];
   }
 
-  (function buildCatalogIndices() {
+  function ensureIndicesBuilt() {
+    if (indicesBuilt) return;
+    indicesBuilt = true;
     for (let mIdx = 0; mIdx < SUPPORTED_MUSEUMS.length; mIdx++) {
       const mid = SUPPORTED_MUSEUMS[mIdx];
       const m = MUSEUMS[mid];
@@ -167,12 +171,45 @@
         }
       }
     }
-  })();
+    HOMELANDS = Array.from(HOMELANDS_MAP.values()).sort((a, b) => b.total - a.total);
+    // Re-validate persisted savedKeys strictly against the authoritative allowlist
+    if (studioState && Array.isArray(studioState.savedKeys)) {
+      const cleaned = studioState.savedKeys.filter(k => MASTER_BY_KEY.has(k));
+      if (cleaned.length !== studioState.savedKeys.length) {
+        studioState.savedKeys = cleaned;
+        persistSavedKeys(cleaned);
+        updateNavBadges();
+      }
+    }
+  }
 
-  const HOMELANDS = Array.from(HOMELANDS_MAP.values()).sort((a, b) => b.total - a.total);
-
-  // Image cache (zero redundant full-res canvas copies!)
+  // Dual-tier image caches: lightweight 64px -mip.webp for ⌘K & instant previews, full HD for cards & Postcard .png
+  const MIP_TILE_SIZE = 64;
+  const mipCache = {};
   const imgCache = {};
+
+  function getMuseumMip(mid) {
+    const m = MUSEUMS[mid] || MUSEUMS.bm;
+    if (mipCache[m.id] && mipCache[m.id].loaded) return Promise.resolve(mipCache[m.id]);
+    if (mipCache[m.id] && mipCache[m.id].promise) return mipCache[m.id].promise;
+    const entry = { img: null, cols: m.atlasCols, tileSize: MIP_TILE_SIZE, loaded: false, promise: null };
+    entry.promise = new Promise((resolve) => {
+      const im = new Image();
+      im.decoding = 'async';
+      im.onload = () => { entry.img = im; entry.loaded = true; resolve(entry); };
+      im.onerror = () => {
+        entry.loaded = true;
+        getMuseumImg(m.id).then((hd) => {
+          if (hd && hd.img) { entry.img = hd.img; entry.tileSize = hd.tileSize; }
+          resolve(entry);
+        });
+      };
+      im.src = String(m.atlasUri || '').replace(/\.webp$/i, '-mip.webp');
+    });
+    mipCache[m.id] = entry;
+    return entry.promise;
+  }
+
   function getMuseumImg(mid) {
     const m = MUSEUMS[mid] || MUSEUMS.bm;
     if (imgCache[m.id] && imgCache[m.id].loaded) return Promise.resolve(imgCache[m.id]);
@@ -189,26 +226,51 @@
     return entry.promise;
   }
 
-  function paintThumb(cnv, mid, spriteIdx, coverCrop) {
+  function blitAtlasTile(cnv, ent, spriteIdx, coverCrop) {
+    if (!cnv || !ent || !ent.img) return;
+    const ctx = cnv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    const ts = ent.tileSize;
+    const sx = (spriteIdx % ent.cols) * ts;
+    const sy = Math.floor(spriteIdx / ent.cols) * ts;
+    ctx.clearRect(0, 0, cnv.width, cnv.height);
+    if (coverCrop) {
+      const ch = Math.round(ts * 0.75);
+      const cy = sy + Math.round((ts - ch) * 0.40);
+      ctx.drawImage(ent.img, sx, cy, ts, ch, 0, 0, cnv.width, cnv.height);
+    } else {
+      ctx.drawImage(ent.img, sx, sy, ts, ts, 0, 0, cnv.width, cnv.height);
+    }
+  }
+
+  function paintThumb(cnv, mid, spriteIdx, coverCrop, mipOnly) {
     if (!cnv) return;
     const ctx = cnv.getContext('2d');
     ctx.fillStyle = '#221c16';
     ctx.fillRect(0, 0, cnv.width, cnv.height);
-    getMuseumImg(mid).then((ent) => {
-      if (!ent || !ent.img) return;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      const ts = ent.tileSize;
-      const sx = (spriteIdx % ent.cols) * ts;
-      const sy = Math.floor(spriteIdx / ent.cols) * ts;
-      ctx.clearRect(0, 0, cnv.width, cnv.height);
-      if (coverCrop) {
-        const ch = Math.round(ts * 0.75);
-        const cy = sy + Math.round((ts - ch) * 0.40);
-        ctx.drawImage(ent.img, sx, cy, ts, ch, 0, 0, cnv.width, cnv.height);
-      } else {
-        ctx.drawImage(ent.img, sx, sy, ts, ts, 0, 0, cnv.width, cnv.height);
+
+    const hdCached = imgCache[mid];
+    if (hdCached && hdCached.loaded && hdCached.img) {
+      blitAtlasTile(cnv, hdCached, spriteIdx, coverCrop);
+      return;
+    }
+
+    if (mipOnly) {
+      getMuseumMip(mid).then((ent) => {
+        if (cnv.isConnected) blitAtlasTile(cnv, ent, spriteIdx, coverCrop);
+      });
+      return;
+    }
+
+    // Large cards (Compare, Exhibition, Quiz): paint tiny mip instantly, then upgrade seamlessly to full HD!
+    getMuseumMip(mid).then((mipEnt) => {
+      if (cnv.isConnected && !(imgCache[mid] && imgCache[mid].img)) {
+        blitAtlasTile(cnv, mipEnt, spriteIdx, coverCrop);
       }
+    });
+    getMuseumImg(mid).then((hdEnt) => {
+      if (cnv.isConnected) blitAtlasTile(cnv, hdEnt, spriteIdx, coverCrop);
     });
   }
 
@@ -277,7 +339,7 @@
       if (!raw) return [];
       const arr = JSON.parse(raw);
       if (!Array.isArray(arr)) return [];
-      return arr.filter(k => typeof k === 'string' && MASTER_BY_KEY.has(k)).slice(0, 36);
+      return arr.filter(k => typeof k === 'string' && /^[a-z]+:\d+$/.test(k) && (!indicesBuilt || MASTER_BY_KEY.has(k))).slice(0, 36);
     } catch (_) {
       return [];
     }
@@ -336,6 +398,7 @@
   }
 
   function toggleSavedKey(key) {
+    ensureIndicesBuilt();
     if (!MASTER_BY_KEY.has(key)) return false;
     const idx = studioState.savedKeys.indexOf(key);
     let added = false;
@@ -585,6 +648,7 @@
     cmpBtn.className = 'studio-mini-btn';
     cmpBtn.id = 'studio-ctx-cmp';
     cmpBtn.addEventListener('click', () => {
+      ensureIndicesBuilt();
       const active = window.__ARTIFACTS_STUDIO_BRIDGE__ && window.__ARTIFACTS_STUDIO_BRIDGE__.getActiveArtifact();
       if (active && MASTER_BY_KEY.has(active.museumId + ':' + active.sprite)) {
         studioState.cmpArtA = active.museumId + ':' + active.sprite;
@@ -598,6 +662,7 @@
     cardBtn.className = 'studio-mini-btn is-gold';
     cardBtn.id = 'studio-ctx-postcard';
     cardBtn.addEventListener('click', () => {
+      ensureIndicesBuilt();
       const active = window.__ARTIFACTS_STUDIO_BRIDGE__ && window.__ARTIFACTS_STUDIO_BRIDGE__.getActiveArtifact();
       const item = active ? MASTER_BY_KEY.get(active.museumId + ':' + active.sprite) : null;
       if (!item) {
@@ -631,6 +696,7 @@
   let cmdkInput = null;
   let cmdkResults = null;
   let cmdkFooter = null;
+  let cmdkDebounceTimer = 0;
 
   function ensureCmdkDom() {
     if (cmdkBackdrop) return;
@@ -662,23 +728,43 @@
     cmdkInput.setAttribute('aria-label', 'Search museums, homelands, masterpieces, stories, and eras');
     cmdkInput.addEventListener('input', () => {
       studioState.cmdkIdx = 0;
-      renderCmdkResults(cmdkInput.value);
+      clearTimeout(cmdkDebounceTimer);
+      const val = cmdkInput.value;
+      cmdkDebounceTimer = setTimeout(() => {
+        cmdkDebounceTimer = 0;
+        renderCmdkResults(val);
+      }, 65);
     });
     cmdkInput.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
+        if (cmdkDebounceTimer) {
+          clearTimeout(cmdkDebounceTimer);
+          cmdkDebounceTimer = 0;
+          renderCmdkResults(cmdkInput.value);
+        }
         if (studioState.cmdkItems.length) {
           studioState.cmdkIdx = (studioState.cmdkIdx + 1) % studioState.cmdkItems.length;
           highlightCmdkRow();
         }
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        if (cmdkDebounceTimer) {
+          clearTimeout(cmdkDebounceTimer);
+          cmdkDebounceTimer = 0;
+          renderCmdkResults(cmdkInput.value);
+        }
         if (studioState.cmdkItems.length) {
           studioState.cmdkIdx = (studioState.cmdkIdx - 1 + studioState.cmdkItems.length) % studioState.cmdkItems.length;
           highlightCmdkRow();
         }
       } else if (e.key === 'Enter') {
         e.preventDefault();
+        if (cmdkDebounceTimer) {
+          clearTimeout(cmdkDebounceTimer);
+          cmdkDebounceTimer = 0;
+          renderCmdkResults(cmdkInput.value);
+        }
         const chosen = studioState.cmdkItems[studioState.cmdkIdx];
         if (chosen && typeof chosen.run === 'function') {
           closeCmdk();
@@ -711,7 +797,10 @@
   }
 
   function openCmdk() {
+    ensureIndicesBuilt();
     ensureCmdkDom();
+    clearTimeout(cmdkDebounceTimer);
+    cmdkDebounceTimer = 0;
     const zh = getLang() === 'zh';
     cmdkInput.placeholder = zh
       ? '搜索 10 座博物馆、101 个原属国、325 件国宝、5 条故事线、挑战与对比…'
@@ -727,6 +816,8 @@
   }
 
   function closeCmdk() {
+    clearTimeout(cmdkDebounceTimer);
+    cmdkDebounceTimer = 0;
     if (cmdkBackdrop) cmdkBackdrop.classList.remove('open');
   }
 
@@ -884,9 +975,9 @@
         th.className = 'cmdk-thumb';
         if (it.museumId && typeof it.sprite === 'number') {
           const cv = document.createElement('canvas');
-          cv.width = 68;
-          cv.height = 68;
-          paintThumb(cv, it.museumId, it.sprite, false);
+          cv.width = 64;
+          cv.height = 64;
+          paintThumb(cv, it.museumId, it.sprite, false, true);
           th.appendChild(cv);
         } else {
           th.textContent = it.icon || '✦';
@@ -998,6 +1089,7 @@
   }
 
   function openStudio(tabId) {
+    ensureIndicesBuilt();
     ensureStudioDom();
     studioBackdrop.classList.add('open');
     switchStudioTab(tabId || studioState.activeTab || 'challenge');
@@ -1950,6 +2042,7 @@
       : ((window.location.hash || '').includes('exhibit=') ? window.location.hash : INITIAL_RAW_HASH);
     const raw = String(pick || '').replace(/^#/, '');
     if (!raw.includes('exhibit=')) return;
+    ensureIndicesBuilt();
     const params = new URLSearchParams(raw);
     const exh = params.get('exhibit');
     if (!exh) return;
@@ -1997,6 +2090,9 @@
     injectNavbarTools();
     injectModalContextButtons();
     checkSharedExhibitHash();
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => ensureIndicesBuilt(), { timeout: 2500 });
+    }
   }
 
   if (document.readyState === 'loading') {

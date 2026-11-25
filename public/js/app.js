@@ -4,11 +4,22 @@
   const DATA = window.MUSEUM_DATA;
   if (!DATA || !DATA.MUSEUMS) return;
 
-  // Load Google Fonts non-blocking on live browsers (skip under offline headless WebDriver)
+  // Load Latin Google Fonts non-blocking on live browsers; lazy-load CJK fonts only when switching to 中文
+  const LATIN_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Google+Sans+Code:wght@400;600&family=Google+Sans+Flex:opsz,wght@14..36,400..700&display=swap';
+  const CJK_FONTS_HREF = 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap';
+  let cjkFontsLoaded = false;
+  function ensureChineseFonts() {
+    if (cjkFontsLoaded || navigator.webdriver) return;
+    cjkFontsLoaded = true;
+    const cjkLink = document.createElement('link');
+    cjkLink.rel = 'stylesheet';
+    cjkLink.href = CJK_FONTS_HREF;
+    document.head.appendChild(cjkLink);
+  }
   if (!navigator.webdriver) {
     const fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
-    fontLink.href = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Google+Sans+Code:wght@400;600&family=Google+Sans+Flex:opsz,wght@14..36,400..700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap';
+    fontLink.href = LATIN_FONTS_HREF;
     document.head.appendChild(fontLink);
   }
 
@@ -478,118 +489,160 @@
   const GLOBE_MIP_SIZE = 64;
   const DEG2RAD = Math.PI / 180;
   const atlasCache = {};
-  const atlasPromises = {};
+  const mipPromises = {};
+  const hdPromises = {};
   let activeAtlas = null;
   let loadedAtlasCount = 0;
 
-  function repaintDeferredCanvases(mid) {
-    const list = document.querySelectorAll('canvas[data-mid="' + mid + '"][data-cover]');
-    for (let i = 0; i < list.length; i++) {
-      const cnv = list[i];
-      const sp = parseInt(cnv.dataset.sprite || '0', 10);
-      if (cnv.dataset.cover === '1') {
-        drawCoverPlateToCanvas(cnv, sp, mid);
-      } else {
-        drawSpriteToCanvas(cnv, sp, mid);
-      }
-    }
+  function mipUriFor(m) {
+    return String(m.atlasUri || '').replace(/\.webp$/i, '-mip.webp');
   }
 
-  function loadMuseumAtlas(museumId, makeActive) {
-    const m = MUSEUMS[museumId] || MUSEUMS.bm;
-    if (atlasCache[m.id]) {
-      if (makeActive) activeAtlas = atlasCache[m.id];
-      return Promise.resolve(atlasCache[m.id]);
-    }
-    if (atlasPromises[m.id]) {
-      return atlasPromises[m.id].then((ent) => {
-        if (makeActive) activeAtlas = ent;
-        return ent;
-      });
-    }
-
-    const gCanvas = document.createElement('canvas');
-    gCanvas.width = m.atlasCols * GLOBE_MIP_SIZE;
-    gCanvas.height = m.atlasRows * GLOBE_MIP_SIZE;
-    const gCtx = gCanvas.getContext('2d');
-    gCtx.fillStyle = '#241f1a';
-    gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
-
+  function getOrCreateAtlasEntry(m) {
+    if (atlasCache[m.id]) return atlasCache[m.id];
     const entry = {
       id: m.id,
       cols: m.atlasCols,
       rows: m.atlasRows,
       tileSize: m.tileSize,
       spriteAtlas: null,
-      globeSpriteAtlas: gCanvas,
-      spriteColors: null
+      globeSpriteAtlas: null,
+      spriteColors: null,
+      mipReady: false,
+      hdReady: false
     };
+    atlasCache[m.id] = entry;
+    return entry;
+  }
 
-    atlasPromises[m.id] = new Promise((resolve) => {
+  function stampGlobeMipCanvas(entry, m, sourceImg) {
+    const gCanvas = entry.globeSpriteAtlas || document.createElement('canvas');
+    gCanvas.width = m.atlasCols * GLOBE_MIP_SIZE;
+    gCanvas.height = m.atlasRows * GLOBE_MIP_SIZE;
+    const gCtx = gCanvas.getContext('2d');
+    gCtx.fillStyle = '#241f1a';
+    gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
+    gCtx.imageSmoothingEnabled = true;
+    gCtx.imageSmoothingQuality = 'medium';
+    gCtx.drawImage(sourceImg, 0, 0, gCanvas.width, gCanvas.height);
+    try {
+      const pc = document.createElement('canvas');
+      pc.width = m.atlasCols;
+      pc.height = m.atlasRows;
+      const pCtx = pc.getContext('2d');
+      pCtx.drawImage(gCanvas, 0, 0, m.atlasCols, m.atlasRows);
+      const pd = pCtx.getImageData(0, 0, m.atlasCols, m.atlasRows).data;
+      const colors = new Array(m.atlasCols * m.atlasRows);
+      for (let idx = 0; idx < colors.length; idx++) {
+        const o = idx * 4;
+        colors[idx] = 'rgb(' + pd[o] + ',' + pd[o + 1] + ',' + pd[o + 2] + ')';
+      }
+      entry.spriteColors = colors;
+    } catch (_) {}
+    gCtx.strokeStyle = 'rgba(255, 248, 234, 0.24)';
+    gCtx.lineWidth = 1.2;
+    for (let idx = 0; idx < m.atlasCols * m.atlasRows; idx++) {
+      const gx = (idx % m.atlasCols) * GLOBE_MIP_SIZE;
+      const gy = Math.floor(idx / m.atlasCols) * GLOBE_MIP_SIZE;
+      gCtx.strokeRect(gx + 0.6, gy + 0.6, GLOBE_MIP_SIZE - 1.2, GLOBE_MIP_SIZE - 1.2);
+    }
+    entry.globeSpriteAtlas = gCanvas;
+    entry.mipReady = true;
+  }
+
+  function repaintDeferredCanvases(mid) {
+    const list = document.querySelectorAll('canvas[data-mid="' + mid + '"][data-cover]');
+    for (let i = 0; i < list.length; i++) {
+      const cnv = list[i];
+      const sp = parseInt(cnv.dataset.sprite || '0', 10);
+      const mipOnly = cnv.dataset.miponly === '1';
+      if (cnv.dataset.cover === '1') {
+        drawCoverPlateToCanvas(cnv, sp, mid);
+      } else {
+        drawSpriteToCanvas(cnv, sp, mid, mipOnly);
+      }
+    }
+  }
+
+  // Tier 1: Ultra-lightweight 64px-tile WebP mipmap (~14–76 KB) for instant 3D globe & previews
+  function loadMuseumMip(museumId, makeActive) {
+    const m = MUSEUMS[museumId] || MUSEUMS.bm;
+    const entry = getOrCreateAtlasEntry(m);
+    if (entry.mipReady) {
+      if (makeActive) activeAtlas = entry;
+      return Promise.resolve(entry);
+    }
+    if (mipPromises[m.id]) {
+      return mipPromises[m.id].then((ent) => {
+        if (makeActive) activeAtlas = ent;
+        return ent;
+      });
+    }
+
+    mipPromises[m.id] = new Promise((resolve) => {
       const img = new Image();
       img.decoding = 'async';
-      const finishMip = (bmp) => {
-        if (bmp) {
-          gCtx.drawImage(bmp, 0, 0, gCanvas.width, gCanvas.height);
-          if (typeof bmp.close === 'function') bmp.close();
-        } else {
-          gCtx.imageSmoothingEnabled = true;
-          gCtx.imageSmoothingQuality = 'medium';
-          gCtx.drawImage(img, 0, 0, gCanvas.width, gCanvas.height);
-        }
-        // Pre-sample authentic dominant pigment color per sprite tile (<0.1ms) for 60 FPS motion LOD
-        try {
-          const pc = document.createElement('canvas');
-          pc.width = m.atlasCols;
-          pc.height = m.atlasRows;
-          const pCtx = pc.getContext('2d');
-          pCtx.drawImage(gCanvas, 0, 0, m.atlasCols, m.atlasRows);
-          const pd = pCtx.getImageData(0, 0, m.atlasCols, m.atlasRows).data;
-          const colors = new Array(m.atlasCols * m.atlasRows);
-          for (let idx = 0; idx < colors.length; idx++) {
-            const o = idx * 4;
-            colors[idx] = 'rgb(' + pd[o] + ',' + pd[o + 1] + ',' + pd[o + 2] + ')';
-          }
-          entry.spriteColors = colors;
-        } catch (_) {}
-        gCtx.strokeStyle = 'rgba(255, 248, 234, 0.24)';
-        gCtx.lineWidth = 1.2;
-        for (let idx = 0; idx < m.atlasCols * m.atlasRows; idx++) {
-          const gx = (idx % m.atlasCols) * GLOBE_MIP_SIZE;
-          const gy = Math.floor(idx / m.atlasCols) * GLOBE_MIP_SIZE;
-          gCtx.strokeRect(gx + 0.6, gy + 0.6, GLOBE_MIP_SIZE - 1.2, GLOBE_MIP_SIZE - 1.2);
-        }
-        atlasCache[m.id] = entry;
+      img.onload = () => {
+        stampGlobeMipCanvas(entry, m, img);
         loadedAtlasCount++;
         if (makeActive || state.museumId === m.id) activeAtlas = entry;
         repaintDeferredCanvases(m.id);
+        if (typeof ensureMainRaf === 'function') ensureMainRaf();
         resolve(entry);
       };
+      img.onerror = () => {
+        // Fallback cleanly to full-res HD atlas if mip asset is unavailable
+        loadMuseumHdAtlas(m.id).then((ent) => {
+          if (makeActive || state.museumId === m.id) activeAtlas = ent;
+          resolve(ent);
+        });
+      };
+      img.src = mipUriFor(m);
+    });
+    return mipPromises[m.id];
+  }
+
+  // Tier 2: Full-resolution 384–420px HD WebP atlas loaded lazily ONLY for gallery cards, modals & lightboxes
+  function loadMuseumHdAtlas(museumId) {
+    const m = MUSEUMS[museumId] || MUSEUMS.bm;
+    const entry = getOrCreateAtlasEntry(m);
+    if (entry.hdReady && entry.spriteAtlas) {
+      return Promise.resolve(entry);
+    }
+    if (hdPromises[m.id]) {
+      return hdPromises[m.id];
+    }
+
+    hdPromises[m.id] = new Promise((resolve) => {
+      const img = new Image();
+      img.decoding = 'async';
       img.onload = () => {
         entry.spriteAtlas = img;
-        if (typeof window.createImageBitmap === 'function') {
-          window.createImageBitmap(img, {
-            resizeWidth: gCanvas.width,
-            resizeHeight: gCanvas.height,
-            resizeQuality: 'medium'
-          }).then(finishMip).catch(() => finishMip(null));
-        } else {
-          finishMip(null);
+        entry.hdReady = true;
+        if (!entry.mipReady) {
+          stampGlobeMipCanvas(entry, m, img);
+          loadedAtlasCount++;
+          if (state.museumId === m.id) activeAtlas = entry;
         }
+        repaintDeferredCanvases(m.id);
+        if (typeof ensureMainRaf === 'function') ensureMainRaf();
+        resolve(entry);
       };
       img.onerror = () => {
-        atlasCache[m.id] = entry;
-        loadedAtlasCount++;
-        if (makeActive) activeAtlas = entry;
+        entry.hdReady = true;
         resolve(entry);
       };
       img.src = m.atlasUri;
     });
-    return atlasPromises[m.id];
+    return hdPromises[m.id];
+  }
+
+  function loadMuseumAtlas(museumId, makeActive) {
+    return loadMuseumMip(museumId, makeActive);
   }
 
   function ensureMuseumAtlas(museumId) {
-    return loadMuseumAtlas(museumId, true);
+    return loadMuseumMip(museumId, true);
   }
 
   let seedState = 20260305;
@@ -923,26 +976,18 @@
     state.ringEntries = ringEntries;
   }
 
-  function generateDatasetForActiveMuseum() {
-    const m = curMuseum();
+  // Cached polygon-verified interior anchor lattice (<= 240 anchors per country) + memoized museum/homeland datasets
+  const countryLatticeCache = new Map();
+  const museumDatasetCache = new Map();
+  const homelandDatasetCache = new Map();
+
+  function getCountryInteriorCoords(enName, fallbackLon, fallbackLat, count) {
     const polyMap = state.polyMap;
-    const countriesSpec = m.countriesSpec;
-    const featuredMap = m.featuredByCountry || {};
-    const regTemplates = m.regionalTemplates || BM_REGIONAL_TEMPLATES;
-    const acqSpan = Math.max(1, m.acqEnd - m.acqStart);
+    const canCache = Boolean(polyMap && polyMap.size > 0);
+    let cached = canCache ? countryLatticeCache.get(enName) : null;
 
-    // Deterministic seed per museum so lattice & jitter are repeatable
-    const museumSeedOffset = SUPPORTED_MUSEUMS.indexOf(m.id) * 10007;
-    seedState = (20260305 + museumSeedOffset) >>> 0;
-
-    const countries = [];
-    const artifacts = [];
-    const curatedHighlights = [];
-
-    for (let cIdx = 0; cIdx < countriesSpec.length; cIdx++) {
-      const [enName, zhName, count, dateRange, fallbackLon, fallbackLat] = countriesSpec[cIdx];
-      const rings = polyMap.get(enName) || [];
-
+    if (!cached) {
+      const rings = (polyMap && polyMap.get(enName)) || [];
       let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
       for (let r = 0; r < rings.length; r++) {
         const ring = rings[r];
@@ -962,12 +1007,15 @@
         maxLat = fallbackLat + 2.0;
       }
 
-      let candidates = [];
       const areaEst = Math.max(4, (maxLon - minLon) * (maxLat - minLat));
-      let step = Math.max(0.28, Math.min(2.6, Math.sqrt(areaEst / (count * 2.3))));
+      const anchorTarget = areaEst > 80 ? 240 : (areaEst > 18 ? 140 : 72);
+      let step = Math.max(0.32, Math.min(2.6, Math.sqrt(areaEst / (anchorTarget * 2.2))));
+      let candidates = [];
+      let stepUsed = step;
 
-      for (let attempt = 0; attempt < 4 && candidates.length < count; attempt++) {
+      for (let attempt = 0; attempt < 2 && candidates.length < anchorTarget; attempt++) {
         candidates = [];
+        stepUsed = step;
         for (let lt = maxLat; lt >= minLat; lt -= step) {
           for (let ln = minLon; ln <= maxLon; ln += step) {
             if (rings.length > 0 && pointInMultiPolygon(ln, lt, rings)) {
@@ -978,24 +1026,89 @@
         step *= 0.62;
       }
 
-      const coords = [];
-      if (candidates.length >= count) {
-        for (let k = 0; k < count; k++) {
-          coords.push(candidates[Math.floor((k + 0.5) * candidates.length / count)]);
-        }
-      } else {
-        for (let k = 0; k < candidates.length; k++) coords.push(candidates[k]);
-        let extra = 0;
-        while (coords.length < count) {
-          const ringR = 0.35 + 0.28 * Math.sqrt(extra + 1);
-          const ang = extra * 2.39996;
-          coords.push([
-            fallbackLon + Math.cos(ang) * ringR,
-            Math.max(-75, Math.min(75, fallbackLat + Math.sin(ang) * ringR * 0.8))
-          ]);
-          extra++;
+      let anchors = candidates;
+      if (candidates.length > 280) {
+        anchors = new Array(280);
+        for (let k = 0; k < 280; k++) {
+          anchors[k] = candidates[Math.floor((k + 0.5) * candidates.length / 280)];
         }
       }
+      cached = { anchors, stepUsed };
+      if (canCache) countryLatticeCache.set(enName, cached);
+    }
+
+    const anchors = cached.anchors;
+    const coords = new Array(count);
+    if (anchors.length >= count) {
+      for (let k = 0; k < count; k++) {
+        coords[k] = anchors[Math.floor((k + 0.5) * anchors.length / count)];
+      }
+    } else if (anchors.length > 0) {
+      const jitter = Math.min(0.42, cached.stepUsed * 0.42);
+      for (let k = 0; k < count; k++) {
+        const base = anchors[k % anchors.length];
+        if (k < anchors.length) {
+          coords[k] = base;
+        } else {
+          const lap = Math.floor(k / anchors.length);
+          const ang = (k * 2.39996) + lap * 1.13;
+          const rad = jitter * (0.28 + 0.72 * ((lap % 4) + 1) / 4);
+          coords[k] = [
+            base[0] + Math.cos(ang) * rad,
+            Math.max(-75, Math.min(75, base[1] + Math.sin(ang) * rad * 0.8))
+          ];
+        }
+      }
+    } else {
+      for (let k = 0; k < count; k++) {
+        const ringR = 0.35 + 0.28 * Math.sqrt(k + 1);
+        const ang = k * 2.39996;
+        coords[k] = [
+          fallbackLon + Math.cos(ang) * ringR,
+          Math.max(-75, Math.min(75, fallbackLat + Math.sin(ang) * ringR * 0.8))
+        ];
+      }
+    }
+    return coords;
+  }
+
+  function generateDatasetForActiveMuseum() {
+    const m = curMuseum();
+    const canCache = Boolean(state.polyMap && state.polyMap.size > 0);
+    const cachedDs = canCache ? museumDatasetCache.get(m.id) : null;
+    if (cachedDs) {
+      state.countries = cachedDs.countries;
+      state.artifacts = cachedDs.artifacts;
+      state.curatedHighlights = cachedDs.curatedHighlights;
+      state.homelandPins = [];
+      state.tlMinYear = m.acqStart;
+      state.tlMaxYear = m.acqEnd;
+      if (!state.timelineActive) {
+        state.timelineYear = m.acqEnd;
+      } else {
+        state.timelineYear = Math.max(m.acqStart, Math.min(m.acqEnd, state.timelineYear));
+      }
+      state.lastFocusedCountry = cachedDs.countries[0] || null;
+      rebuildRingEntries();
+      return;
+    }
+
+    const countriesSpec = m.countriesSpec;
+    const featuredMap = m.featuredByCountry || {};
+    const regTemplates = m.regionalTemplates || BM_REGIONAL_TEMPLATES;
+    const acqSpan = Math.max(1, m.acqEnd - m.acqStart);
+
+    // Deterministic seed per museum so lattice & jitter are repeatable
+    const museumSeedOffset = SUPPORTED_MUSEUMS.indexOf(m.id) * 10007;
+    seedState = (20260305 + museumSeedOffset) >>> 0;
+
+    const countries = [];
+    const artifacts = [];
+    const curatedHighlights = [];
+
+    for (let cIdx = 0; cIdx < countriesSpec.length; cIdx++) {
+      const [enName, zhName, count, dateRange, fallbackLon, fallbackLat] = countriesSpec[cIdx];
+      const coords = getCountryInteriorCoords(enName, fallbackLon, fallbackLat, count);
 
       const isHostCountry = Boolean(m.hostCountryEn && enName === m.hostCountryEn);
       const displayEn = enName === 'United States of America' ? 'United States' : enName;
@@ -1106,6 +1219,9 @@
       countries.push(countryObj);
     }
 
+    if (canCache) {
+      museumDatasetCache.set(m.id, { countries, artifacts, curatedHighlights });
+    }
     state.countries = countries;
     state.artifacts = artifacts;
     state.curatedHighlights = curatedHighlights;
@@ -1180,67 +1296,33 @@
   function generateDatasetForHomeland(homelandEn) {
     const entry = getHomelandEntry(homelandEn);
     state.homelandCountryEn = entry.en;
-    const polyMap = state.polyMap;
+    const canCache = Boolean(state.polyMap && state.polyMap.size > 0);
+    const cachedHm = canCache ? homelandDatasetCache.get(entry.en) : null;
+    if (cachedHm) {
+      state.countries = cachedHm.homelandRows;
+      state.artifacts = cachedHm.combined;
+      state.curatedHighlights = cachedHm.interleavedCurated;
+      state.homelandPins = cachedHm.pins;
+      state.selectedCountry = state.homelandListTabActive ? null : cachedHm.activeRow;
+      state.lastFocusedCountry = cachedHm.activeRow;
+      state.tlMinYear = cachedHm.minAcq;
+      state.tlMaxYear = cachedHm.maxAcq;
+      if (!state.timelineActive) {
+        state.timelineYear = cachedHm.maxAcq;
+      } else {
+        state.timelineYear = Math.max(cachedHm.minAcq, Math.min(cachedHm.maxAcq, state.timelineYear));
+      }
+      rebuildRingEntries();
+      return;
+    }
+
     const enName = entry.en;
     const zhName = entry.zh;
     const displayEn = enName === 'United States of America' ? 'United States' : enName;
     const totalCount = entry.totalCount;
     const fallbackLon = entry.centerLon;
     const fallbackLat = entry.centerLat;
-    const rings = polyMap.get(enName) || [];
-
-    let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
-    for (let r = 0; r < rings.length; r++) {
-      const ring = rings[r];
-      for (let p = 0; p < ring.length; p++) {
-        const [ln, lt] = ring[p];
-        if (Math.abs(ln - fallbackLon) > 95) continue;
-        if (ln < minLon) minLon = ln;
-        if (ln > maxLon) maxLon = ln;
-        if (lt < minLat) minLat = lt;
-        if (lt > maxLat) maxLat = lt;
-      }
-    }
-    if (minLon > maxLon) {
-      minLon = fallbackLon - 2.5;
-      maxLon = fallbackLon + 2.5;
-      minLat = fallbackLat - 2.0;
-      maxLat = fallbackLat + 2.0;
-    }
-
-    let candidates = [];
-    const areaEst = Math.max(4, (maxLon - minLon) * (maxLat - minLat));
-    let step = Math.max(0.24, Math.min(2.4, Math.sqrt(areaEst / (totalCount * 2.2))));
-    for (let attempt = 0; attempt < 4 && candidates.length < totalCount; attempt++) {
-      candidates = [];
-      for (let lt = maxLat; lt >= minLat; lt -= step) {
-        for (let ln = minLon; ln <= maxLon; ln += step) {
-          if (rings.length > 0 && pointInMultiPolygon(ln, lt, rings)) {
-            candidates.push([ln, lt]);
-          }
-        }
-      }
-      step *= 0.62;
-    }
-
-    const coords = [];
-    if (candidates.length >= totalCount) {
-      for (let k = 0; k < totalCount; k++) {
-        coords.push(candidates[Math.floor((k + 0.5) * candidates.length / totalCount)]);
-      }
-    } else {
-      for (let k = 0; k < candidates.length; k++) coords.push(candidates[k]);
-      let extra = 0;
-      while (coords.length < totalCount) {
-        const ringR = 0.35 + 0.25 * Math.sqrt(extra + 1);
-        const ang = extra * 2.39996;
-        coords.push([
-          fallbackLon + Math.cos(ang) * ringR,
-          Math.max(-75, Math.min(75, fallbackLat + Math.sin(ang) * ringR * 0.8))
-        ]);
-        extra++;
-      }
-    }
+    const coords = getCountryInteriorCoords(enName, fallbackLon, fallbackLat, totalCount);
 
     seedState = (20260917 + entry.index * 7919) >>> 0;
     const countryObj = {
@@ -1420,6 +1502,17 @@
     }));
 
     const activeRow = homelandRows.find(r => r.en === enName) || countryObj;
+    if (canCache) {
+      homelandDatasetCache.set(enName, {
+        homelandRows,
+        activeRow,
+        combined,
+        interleavedCurated,
+        pins,
+        minAcq,
+        maxAcq
+      });
+    }
     state.countries = homelandRows;
     state.artifacts = combined;
     state.curatedHighlights = interleavedCurated;
@@ -2347,6 +2440,7 @@
   function setLanguage(newLang, skipHash) {
     const cleanLang = SUPPORTED_LANGS.includes(newLang) ? newLang : 'en';
     state.lang = cleanLang;
+    if (cleanLang === 'zh') ensureChineseFonts();
     applyStaticAndMuseumTranslations();
     rebuildRingEntries();
     updateCollectButtonUI();
@@ -2407,8 +2501,11 @@
     applyStaticAndMuseumTranslations();
     updateCollectButtonUI();
     selectCountry(null, true);
-    renderMasterpiecesGallery();
-    renderTopOriginsBars();
+    requestAnimationFrame(() => {
+      if (state.museumId !== cleanId) return;
+      renderMasterpiecesGallery();
+      renderTopOriginsBars();
+    });
     if (!skipHash) {
       updateUrlHash(null, null);
     }
@@ -2441,13 +2538,13 @@
 
     const neededMuseums = entry.holdings.map(h => h.museumId);
     for (let i = 0; i < neededMuseums.length; i++) {
-      loadMuseumAtlas(neededMuseums[i], false);
+      loadMuseumMip(neededMuseums[i], false);
     }
     generateDatasetForHomeland(entry.en);
     applyStaticAndMuseumTranslations();
     updateCollectButtonUI();
     selectCountry(state.selectedCountry, true);
-    renderTopOriginsBars();
+    requestAnimationFrame(() => renderTopOriginsBars());
     if (!skipHash) {
       updateUrlHash(state.selectedCountry, null);
     }
@@ -2489,7 +2586,7 @@
     applyStaticAndMuseumTranslations();
     updateCollectButtonUI();
     selectCountry(null, true);
-    renderTopOriginsBars();
+    requestAnimationFrame(() => renderTopOriginsBars());
     if (!skipHash) {
       updateUrlHash(null, null);
     }
@@ -2589,27 +2686,38 @@
     btn.replaceChildren(svg, document.createTextNode(label));
   }
 
-  function drawSpriteToCanvas(targetCanvas, spriteIdx, explicitMuseumId) {
+  function drawSpriteToCanvas(targetCanvas, spriteIdx, explicitMuseumId, mipOnly) {
     const mid = explicitMuseumId || state.museumId;
     targetCanvas.dataset.mid = mid;
     targetCanvas.dataset.sprite = String(spriteIdx);
     targetCanvas.dataset.cover = '0';
+    targetCanvas.dataset.miponly = mipOnly ? '1' : '0';
     const atl = atlasCache[mid] || (!explicitMuseumId ? activeAtlas : null);
-    if (!atl || !atl.spriteAtlas) {
-      loadMuseumAtlas(mid, mid === state.museumId);
-      const c = targetCanvas.getContext('2d');
-      c.fillStyle = '#241f1a';
-      c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+    const c = targetCanvas.getContext('2d');
+    if (atl && atl.spriteAtlas) {
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      const ts = atl.tileSize;
+      const sx = (spriteIdx % atl.cols) * ts;
+      const sy = Math.floor(spriteIdx / atl.cols) * ts;
+      c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      c.drawImage(atl.spriteAtlas, sx, sy, ts, ts, 0, 0, targetCanvas.width, targetCanvas.height);
       return;
     }
-    const c = targetCanvas.getContext('2d');
-    c.imageSmoothingEnabled = true;
-    c.imageSmoothingQuality = 'high';
-    const ts = atl.tileSize;
-    const sx = (spriteIdx % atl.cols) * ts;
-    const sy = Math.floor(spriteIdx / atl.cols) * ts;
-    c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-    c.drawImage(atl.spriteAtlas, sx, sy, ts, ts, 0, 0, targetCanvas.width, targetCanvas.height);
+    if (atl && atl.mipReady && atl.globeSpriteAtlas) {
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      const sx = (spriteIdx % atl.cols) * GLOBE_MIP_SIZE;
+      const sy = Math.floor(spriteIdx / atl.cols) * GLOBE_MIP_SIZE;
+      c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      c.drawImage(atl.globeSpriteAtlas, sx, sy, GLOBE_MIP_SIZE, GLOBE_MIP_SIZE, 0, 0, targetCanvas.width, targetCanvas.height);
+      if (!mipOnly) loadMuseumHdAtlas(mid);
+      return;
+    }
+    loadMuseumMip(mid, mid === state.museumId);
+    if (!mipOnly) loadMuseumHdAtlas(mid);
+    c.fillStyle = '#241f1a';
+    c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
   }
 
   function drawCoverPlateToCanvas(targetCanvas, spriteIdx, explicitMuseumId) {
@@ -2617,24 +2725,37 @@
     targetCanvas.dataset.mid = mid;
     targetCanvas.dataset.sprite = String(spriteIdx);
     targetCanvas.dataset.cover = '1';
+    targetCanvas.dataset.miponly = '0';
     const atl = atlasCache[mid] || (!explicitMuseumId ? activeAtlas : null);
-    if (!atl || !atl.spriteAtlas) {
-      loadMuseumAtlas(mid, false);
-      const c = targetCanvas.getContext('2d');
-      c.fillStyle = '#241f1a';
-      c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
+    const c = targetCanvas.getContext('2d');
+    if (atl && atl.spriteAtlas) {
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      const ts = atl.tileSize;
+      const sx = (spriteIdx % atl.cols) * ts;
+      const sy = Math.floor(spriteIdx / atl.cols) * ts;
+      const cropH = Math.round(ts * 0.75);
+      const cropY = sy + Math.round((ts - cropH) * 0.40);
+      c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      c.drawImage(atl.spriteAtlas, sx, cropY, ts, cropH, 0, 0, targetCanvas.width, targetCanvas.height);
       return;
     }
-    const c = targetCanvas.getContext('2d');
-    c.imageSmoothingEnabled = true;
-    c.imageSmoothingQuality = 'high';
-    const ts = atl.tileSize;
-    const sx = (spriteIdx % atl.cols) * ts;
-    const sy = Math.floor(spriteIdx / atl.cols) * ts;
-    const cropH = Math.round(ts * 0.75);
-    const cropY = sy + Math.round((ts - cropH) * 0.40);
-    c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-    c.drawImage(atl.spriteAtlas, sx, cropY, ts, cropH, 0, 0, targetCanvas.width, targetCanvas.height);
+    if (atl && atl.mipReady && atl.globeSpriteAtlas) {
+      c.imageSmoothingEnabled = true;
+      c.imageSmoothingQuality = 'high';
+      const sx = (spriteIdx % atl.cols) * GLOBE_MIP_SIZE;
+      const sy = Math.floor(spriteIdx / atl.cols) * GLOBE_MIP_SIZE;
+      const cropH = Math.round(GLOBE_MIP_SIZE * 0.75);
+      const cropY = sy + Math.round((GLOBE_MIP_SIZE - cropH) * 0.40);
+      c.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+      c.drawImage(atl.globeSpriteAtlas, sx, cropY, GLOBE_MIP_SIZE, cropH, 0, 0, targetCanvas.width, targetCanvas.height);
+      loadMuseumHdAtlas(mid);
+      return;
+    }
+    loadMuseumMip(mid, false);
+    loadMuseumHdAtlas(mid);
+    c.fillStyle = '#241f1a';
+    c.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
   }
 
   function buildDeepLinkHash(country, artifact) {
@@ -2977,6 +3098,24 @@
     if (!skipHash) updateUrlHash(country, null);
 
     elThumbGrid.replaceChildren();
+    if (window.__sidebarThumbObs) {
+      window.__sidebarThumbObs.disconnect();
+      window.__sidebarThumbObs = null;
+    }
+    if (typeof IntersectionObserver === 'function') {
+      window.__sidebarThumbObs = new IntersectionObserver((entries, obs) => {
+        for (let i = 0; i < entries.length; i++) {
+          if (!entries[i].isIntersecting) continue;
+          const target = entries[i].target;
+          obs.unobserve(target);
+          if (target.dataset.painted === '1') continue;
+          target.dataset.painted = '1';
+          target.width = 180;
+          target.height = 180;
+          drawSpriteToCanvas(target, Number(target.dataset.sprite || 0), target.dataset.mid || state.museumId, target.dataset.miponly === '1');
+        }
+      }, { root: elThumbGrid, rootMargin: '160px 0px' });
+    }
     const q = state.searchQuery;
     const frag = document.createDocumentFragment();
     const limit = 60;
@@ -3003,14 +3142,18 @@
       card.setAttribute('aria-label', (isHomelandMode ? (artMc.shortName + ' · ') : '') + artFullTitle(art));
 
       const cnv = document.createElement('canvas');
-      cnv.width = 360;
-      cnv.height = 360;
-      if (atlasCache[artMid]) {
-        drawSpriteToCanvas(cnv, art.sprite, artMid);
+      cnv.dataset.mid = artMid;
+      cnv.dataset.sprite = String(art.sprite);
+      cnv.dataset.miponly = isHomelandMode ? '1' : '0';
+      if (!window.__sidebarThumbObs || shownInCountry <= 10) {
+        cnv.dataset.painted = '1';
+        cnv.width = 180;
+        cnv.height = 180;
+        drawSpriteToCanvas(cnv, art.sprite, artMid, isHomelandMode);
       } else {
-        loadMuseumAtlas(artMid, false).then(() => {
-          drawSpriteToCanvas(cnv, art.sprite, artMid);
-        });
+        cnv.width = 16;
+        cnv.height = 16;
+        window.__sidebarThumbObs.observe(cnv);
       }
 
       const cap = document.createElement('span');
@@ -3035,15 +3178,8 @@
     const mc = (artM.copy && artM.copy[state.lang]) || artM.copy.en;
     state.selectedArtifact = art;
 
-    if (atlasCache[artMid]) {
-      drawSpriteToCanvas(elModalCanvas, art.sprite, artMid);
-    } else {
-      loadMuseumAtlas(artMid, false).then(() => {
-        if (state.selectedArtifact === art) {
-          drawSpriteToCanvas(elModalCanvas, art.sprite, artMid);
-        }
-      });
-    }
+    drawSpriteToCanvas(elModalCanvas, art.sprite, artMid, false);
+    loadMuseumHdAtlas(artMid);
 
     if (elModalMuseumPill) {
       elModalMuseumPill.classList.remove('is-hidden');
@@ -3130,9 +3266,10 @@
     const m = MUSEUMS[artMid] || curMuseum();
     const mc = (m.copy && m.copy[state.lang]) || m.copy.en;
     state.lightboxArtifact = art;
-    loadMuseumAtlas(artMid, false).then(() => {
+    drawSpriteToCanvas(elLightboxCanvas, art.sprite, artMid, false);
+    loadMuseumHdAtlas(artMid).then(() => {
       if (state.lightboxArtifact === art) {
-        drawSpriteToCanvas(elLightboxCanvas, art.sprite, artMid);
+        drawSpriteToCanvas(elLightboxCanvas, art.sprite, artMid, false);
       }
     });
     elLightboxImg.classList.remove('loaded');
@@ -3232,13 +3369,7 @@
       job.cnv.dataset.rendered = '1';
       job.cnv.width = 320;
       job.cnv.height = 240;
-      if (atlasCache[job.artMid]) {
-        drawCoverPlateToCanvas(job.cnv, job.spriteIdx, job.artMid);
-      } else {
-        loadMuseumAtlas(job.artMid, false).then(() => {
-          drawCoverPlateToCanvas(job.cnv, job.spriteIdx, job.artMid);
-        });
-      }
+      drawCoverPlateToCanvas(job.cnv, job.spriteIdx, job.artMid);
       budget--;
     }
     if (galleryPaintQueue.length > 0) {
@@ -3313,7 +3444,7 @@
       const cnv = document.createElement('canvas');
       cnv.dataset.sprite = String(art.sprite);
       cnv.dataset.mid = artMid;
-      if (!galleryPlateObserver || currentRenderedGalleryList.length <= 12) {
+      if (!galleryPlateObserver) {
         renderGalleryPlateNow(cnv, art.sprite, artMid);
       } else {
         cnv.width = 16;
@@ -3682,6 +3813,37 @@
   let mainBaseKey = '';
   let mainScrollPauseUntil = 0;
   let lastFlightBannerText = '';
+  let occGrid = new Uint8Array(0);
+
+  function cullOverdrawnCards(cards, cellPx, maxPerCell) {
+    if (cards.length <= 700) return cards;
+    const cell = Math.max(4, Math.floor(cellPx));
+    const gw = Math.ceil(vpW / cell) + 1;
+    const gh = Math.ceil(vpH / cell) + 1;
+    const needed = gw * gh;
+    if (occGrid.length < needed) occGrid = new Uint8Array(needed);
+    occGrid.fill(0, 0, needed);
+    // Walk front-to-back so the frontmost cards & all curated/hovered/selected cards ALWAYS win
+    const kept = [];
+    for (let i = cards.length - 1; i >= 0; i--) {
+      const c = cards[i];
+      const art = c.art;
+      const mustKeep = art.isCurated || state.hoveredArtifact === art || state.selectedArtifact === art;
+      const gx = Math.floor(c.sx / cell);
+      const gy = Math.floor(c.sy / cell);
+      if (gx < 0 || gx >= gw || gy < 0 || gy >= gh) continue;
+      const idx = gy * gw + gx;
+      if (mustKeep) {
+        if (occGrid[idx] < 255) occGrid[idx]++;
+        kept.push(c);
+      } else if (occGrid[idx] < maxPerCell) {
+        occGrid[idx]++;
+        kept.push(c);
+      }
+    }
+    kept.reverse();
+    return kept;
+  }
 
   function resizeCanvas() {
     const rect = elGlobeSection.getBoundingClientRect();
@@ -4180,6 +4342,14 @@
     const mode = state.displayMode;
     const fallbackCols = activeAtlas ? activeAtlas.cols : 8;
     const fallbackAtlas = activeAtlas ? activeAtlas.globeSpriteAtlas : null;
+
+    if (!fastMotion && mode !== 'particles') {
+      const pruned = cullOverdrawnCards(visibleCards, baseCardPx * 0.62, state.zoom > 1.45 ? 2 : 1);
+      if (pruned !== visibleCards) {
+        visibleCards.length = 0;
+        for (let i = 0; i < pruned.length; i++) visibleCards.push(pruned[i]);
+      }
+    }
 
     if (fastMotion && mode === 'standing' && fallbackAtlas) {
       // Ultra-fast 60 FPS motion path: 4 pigment-bucket batches (zero CSS color parse thrashing!) + curated HD plates on top
@@ -5193,6 +5363,7 @@
 
     state.museumId = SUPPORTED_MUSEUMS.includes(initialMuseum) ? initialMuseum : 'bm';
     state.lang = SUPPORTED_LANGS.includes(initialLang) ? initialLang : 'en';
+    if (state.lang === 'zh') ensureChineseFonts();
 
     const m = curMuseum();
     state.rotLon = m.defaultRotLonDeg * DEG2RAD;
@@ -5203,7 +5374,7 @@
     resizeCanvas();
     applyStaticAndMuseumTranslations();
 
-    // Load active museum's .webp atlas on-demand (other museums load instantaneously when selected, zero background GC freezes!)
+    // Load active museum's tiny -mip.webp atlas immediately (~14-76 KB); HD atlases load lazily on card/modal view
     ensureMuseumAtlas(state.museumId);
 
     try {
@@ -5214,6 +5385,9 @@
     } catch (_) {
       state.polyMap = new Map();
     }
+
+    const wantsBelowFoldNow = rawHash.includes('masterpieces') || rawHash.includes('methodology');
+    let deferredBelowFold = false;
 
     if (initialLens === 'homeland') {
       const matchH = getHomelandCatalog().find(
@@ -5231,8 +5405,12 @@
       applyStaticAndMuseumTranslations();
       updateCollectButtonUI();
       renderCountryList();
-      renderMasterpiecesGallery();
-      renderTopOriginsBars();
+      if (wantsBelowFoldNow) {
+        renderMasterpiecesGallery();
+        renderTopOriginsBars();
+      } else {
+        deferredBelowFold = true;
+      }
 
       if (rawHash && rawHash.includes('=')) {
         const countryParam = sanitizeQuery(hashParams.get('country') || '');
@@ -5286,6 +5464,12 @@
     }, { passive: true });
 
     ensureMainRaf();
+    if (deferredBelowFold) {
+      requestAnimationFrame(() => {
+        renderMasterpiecesGallery();
+        renderTopOriginsBars();
+      });
+    }
   }
 
   const elDockEl = document.getElementById('bottom-dock');
